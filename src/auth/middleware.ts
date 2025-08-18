@@ -3,7 +3,7 @@ import { AuthenticationError } from '../errors/index.js';
 import { logger } from '../utils/index.js';
 
 /**
- * Extend Express Request interface to include user property
+ * Extend Express Request interface to include user property and Passport methods
  */
 declare global {
   namespace Express {
@@ -21,6 +21,17 @@ declare global {
       createdAt: Date;
       updatedAt: Date;
     }
+
+    interface Request {
+      user?: User;
+      isAuthenticated(): boolean;
+      login(user: User, done: (err: any) => void): void;
+      login(user: User, options: any, done: (err: any) => void): void;
+      logIn(user: User, done: (err: any) => void): void;
+      logIn(user: User, options: any, done: (err: any) => void): void;
+      logout(done: (err: any) => void): void;
+      logOut(done: (err: any) => void): void;
+    }
   }
 }
 
@@ -30,7 +41,7 @@ declare global {
  */
 export function ensureAuthenticated(req: Request, res: Response, next: NextFunction): void {
   const requestLogger = logger.withRequest(req);
-  
+
   if (req.isAuthenticated()) {
     requestLogger.auth('Access granted to protected resource', {
       action: 'access_granted',
@@ -39,25 +50,25 @@ export function ensureAuthenticated(req: Request, res: Response, next: NextFunct
     });
     return next();
   }
-  
+
   requestLogger.auth('Access denied to protected resource - authentication required', {
     action: 'access_denied',
     success: false,
     resource: req.originalUrl || req.url,
     reason: 'not_authenticated'
   });
-  
+
   const error = new AuthenticationError(
     'Authentication required - please log in to access this resource',
     401,
     'AUTH_REQUIRED'
   );
-  
+
   // For API requests, pass error to error handler
   if (req.headers.accept?.includes('application/json')) {
     return next(error);
   }
-  
+
   // For browser requests, redirect to home page with error message
   res.redirect('/?error=auth_required&message=' + encodeURIComponent('Please log in to access this resource'));
 }
@@ -70,7 +81,7 @@ export function ensureNotAuthenticated(req: Request, res: Response, next: NextFu
   if (!req.isAuthenticated()) {
     return next();
   }
-  
+
   const requestLogger = logger.withRequest(req);
   requestLogger.auth('Authenticated user redirected from login page', {
     action: 'redirect_authenticated',
@@ -78,7 +89,7 @@ export function ensureNotAuthenticated(req: Request, res: Response, next: NextFu
     from: req.originalUrl || req.url,
     to: '/'
   });
-  
+
   // Redirect authenticated users to home page
   res.redirect('/');
 }

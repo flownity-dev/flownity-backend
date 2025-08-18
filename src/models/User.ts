@@ -14,6 +14,17 @@ export interface GitHubProfile {
     photos?: Array<{ value: string }>;
 }
 
+export interface GoogleProfile {
+    id: string;
+    displayName: string;
+    name?: {
+        givenName?: string;
+        familyName?: string;
+    };
+    emails?: Array<{ value: string; verified: boolean }>;
+    photos?: Array<{ value: string }>;
+}
+
 export interface UserRow {
     id: number;
     provider_id: string;
@@ -133,12 +144,21 @@ export class User {
     }
 
     /**
-     * Create a new user from GitHub profile
-     * @param profile - GitHub profile data
+     * Find a user by their Google ID
+     * @param googleId - The Google ID to search for
+     * @returns User instance or null if not found
+     */
+    static async findByGoogleId(googleId: string): Promise<User | null> {
+        return this.findByProviderId(googleId, 'google');
+    }
+
+    /**
+     * Create a new user from OAuth profile
+     * @param profile - OAuth profile data (GitHub or Google)
      * @param provider - The provider (default: 'github')
      * @returns New User instance
      */
-    static async create(profile: GitHubProfile, provider: string = 'github'): Promise<User> {
+    static async create(profile: GitHubProfile | GoogleProfile, provider: string = 'github'): Promise<User> {
         // Validate profile data
         if (!profile || typeof profile !== 'object') {
             throw new ValidationError('Profile data is required');
@@ -148,8 +168,13 @@ export class User {
             throw new ValidationError('Profile must have a valid provider ID');
         }
 
-        if (!profile.username || typeof profile.username !== 'string' || profile.username.trim() === '') {
-            throw new ValidationError('Profile must have a valid username');
+        // For GitHub profiles, username is required. For Google profiles, we'll use email or generate one
+        const username = 'username' in profile 
+            ? profile.username 
+            : profile.emails?.[0]?.value?.split('@')[0] || `user_${profile.id}`;
+            
+        if (!username || typeof username !== 'string' || username.trim() === '') {
+            throw new ValidationError('Profile must have a valid username or email');
         }
 
         try {
@@ -158,7 +183,7 @@ export class User {
                 table: 'flwnty_users',
                 providerId: profile.id.trim(),
                 provider: provider.trim(),
-                username: profile.username.trim()
+                username: username.trim()
             });
 
             // Extract name parts from displayName or name object
@@ -168,7 +193,7 @@ export class User {
             if (profile.name?.givenName || profile.name?.familyName) {
                 firstName = profile.name.givenName || null;
                 lastName = profile.name.familyName || null;
-            } else if (profile.displayName && profile.displayName !== profile.username) {
+            } else if (profile.displayName && ('username' in profile ? profile.displayName !== profile.username : true)) {
                 const nameParts = profile.displayName.trim().split(' ');
                 if (nameParts.length >= 2) {
                     firstName = nameParts[0] || null;
@@ -200,7 +225,7 @@ export class User {
             const values = [
                 profile.id.trim(),
                 provider.trim(),
-                profile.username.trim(),
+                username.trim(),
                 firstName,
                 lastName,
                 email,
@@ -223,7 +248,7 @@ export class User {
                 table: 'flwnty_users',
                 providerId: profile.id.trim(),
                 provider: provider.trim(),
-                username: profile.username.trim(),
+                username: username.trim(),
                 userId: userRow.id,
                 success: true
             });
@@ -240,7 +265,7 @@ export class User {
                 table: 'flwnty_users',
                 providerId: profile.id.trim(),
                 provider: provider.trim(),
-                username: profile.username.trim(),
+                username: username.trim(),
                 error: error instanceof Error ? error.message : String(error)
             });
 
@@ -259,6 +284,15 @@ export class User {
                 'USER_CREATE_ERROR'
             );
         }
+    }
+
+    /**
+     * Create a new user from Google profile
+     * @param profile - Google profile data
+     * @returns New User instance
+     */
+    static async createFromGoogle(profile: GoogleProfile): Promise<User> {
+        return this.create(profile, 'google');
     }
 
     /**

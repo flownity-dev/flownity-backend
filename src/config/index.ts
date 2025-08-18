@@ -9,7 +9,10 @@ export interface AppConfig {
   SESSION_SECRET: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
   CALLBACK_URL: string;
+  GOOGLE_CALLBACK_URL: string;
   DATABASE_HOST: string;
   DATABASE_PORT: number;
   DATABASE_NAME: string;
@@ -20,17 +23,22 @@ export interface AppConfig {
 function validateConfig(): AppConfig {
   const requiredEnvVars = [
     'SESSION_SECRET',
-    'GITHUB_CLIENT_ID',
-    'GITHUB_CLIENT_SECRET',
-    'CALLBACK_URL',
     'DATABASE_HOST',
     'DATABASE_NAME',
     'DATABASE_USER',
     'DATABASE_PASSWORD'
   ];
 
+  // Check for at least one OAuth provider
+  const hasGitHub = process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET && process.env.CALLBACK_URL;
+  const hasGoogle = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL;
+
+  if (!hasGitHub && !hasGoogle) {
+    throw new Error('At least one OAuth provider must be configured (GitHub or Google)');
+  }
+
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-  
+
   if (missingVars.length > 0) {
     throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
   }
@@ -39,9 +47,12 @@ function validateConfig(): AppConfig {
     PORT: parseInt(process.env.PORT || '3000', 10),
     NODE_ENV: process.env.NODE_ENV || 'development',
     SESSION_SECRET: process.env.SESSION_SECRET!,
-    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID!,
-    GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET!,
-    CALLBACK_URL: process.env.CALLBACK_URL!,
+    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || '',
+    GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || '',
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+    CALLBACK_URL: process.env.CALLBACK_URL || '',
+    GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL || '',
     DATABASE_HOST: process.env.DATABASE_HOST!,
     DATABASE_PORT: parseInt(process.env.DATABASE_PORT || '5432', 10),
     DATABASE_NAME: process.env.DATABASE_NAME!,

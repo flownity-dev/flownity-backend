@@ -49,7 +49,7 @@ app.get('/', (req, res) => {
 
   if (isAuthenticated && user) {
     res.send(`
-      <h1>Flownity Backend - GitHub OAuth Authentication</h1>
+      <h1>Flownity Backend - OAuth Authentication</h1>
       ${errorHtml}
       <p>Welcome, ${user.username}!</p>
       <p>Display Name: ${user.displayName}</p>
@@ -62,23 +62,43 @@ app.get('/', (req, res) => {
       </form>
     `);
   } else {
+    const authOptions = [];
+    if (config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET) {
+      authOptions.push('<a href="/auth/github">Login with GitHub</a>');
+    }
+    if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
+      authOptions.push('<a href="/auth/google">Login with Google</a>');
+    }
+    
     res.send(`
-      <h1>Flownity Backend - GitHub OAuth Authentication</h1>
+      <h1>Flownity Backend - OAuth Authentication</h1>
       ${errorHtml}
       <p>You are not authenticated.</p>
-      <a href="/auth/github">Login with GitHub</a>
+      ${authOptions.join(' | ')}
     `);
   }
 });
 
 // Authentication routes
-app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+// GitHub OAuth routes (if configured)
+if (config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET) {
+  app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+}
 
-app.get('/auth/github/callback',
-  (req, res, next) => {
-    const requestLogger = logger.withRequest(req);
-    
-    passport.authenticate('github', (err: any, user: any, _info: any) => {
+// Google OAuth routes (if configured)
+if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
+  app.get('/auth/google', passport.authenticate('google', { 
+    scope: ['profile', 'email'] 
+  }));
+}
+
+// GitHub callback route (if configured)
+if (config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET) {
+  app.get('/auth/github/callback',
+    (req, res, next) => {
+      const requestLogger = logger.withRequest(req);
+      
+      passport.authenticate('github', (err: any, user: any, _info: any) => {
       if (err) {
         requestLogger.oauth('OAuth callback failed with error', {
           step: 'callback_error',
@@ -132,7 +152,74 @@ app.get('/auth/github/callback',
       });
     })(req, res, next);
   }
-);
+  );
+}
+
+// Google callback route (if configured)
+if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
+  app.get('/auth/google/callback',
+    (req, res, next) => {
+      const requestLogger = logger.withRequest(req);
+      
+      passport.authenticate('google', (err: any, user: any, _info: any) => {
+        if (err) {
+          requestLogger.oauth('OAuth callback failed with error', {
+            step: 'callback_error',
+            success: false,
+            error: err.message,
+            provider: 'google'
+          });
+          
+          // Handle OAuth errors
+          if (err instanceof OAuthError) {
+            return res.redirect('/?error=oauth_failed&message=' + encodeURIComponent(err.message));
+          }
+          // Pass other errors to error handler
+          return next(err);
+        }
+        
+        if (!user) {
+          requestLogger.oauth('OAuth callback failed - user denied access', {
+            step: 'callback_denied',
+            success: false,
+            error: 'user_denied_access',
+            provider: 'google'
+          });
+          
+          // Authentication failed but no error (user denied access)
+          return res.redirect('/?error=oauth_denied&message=' + encodeURIComponent('Google authentication was cancelled or denied'));
+        }
+        
+        // Log the user in
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            requestLogger.session('Failed to establish session after authentication', {
+              action: 'login_session_failed',
+              success: false,
+              error: loginErr.message,
+              userId: user.id,
+              provider: 'google'
+            });
+            
+            return next(new OAuthError('Failed to establish session after authentication', 500, 'SESSION_LOGIN_FAILED'));
+          }
+          
+          requestLogger.auth('User successfully logged in via OAuth', {
+            action: 'oauth_login_complete',
+            success: true,
+            userId: user.id,
+            providerId: user.providerId,
+            provider: user.provider,
+            username: user.username
+          });
+          
+          // Successful authentication, redirect to home page
+          res.redirect('/');
+        });
+      })(req, res, next);
+    }
+  );
+}
 
 app.post('/auth/logout', (req, res, next) => {
   const requestLogger = logger.withRequest(req);

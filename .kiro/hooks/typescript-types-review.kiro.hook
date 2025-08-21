@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "TypeScript Types Review",
+  "description": "Reviews TypeScript changed files for potential improvement of Type and Interface creation by identifying types/interfaces that could be moved to common types files and ensuring proper imports/usage across the codebase.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review the changed TypeScript files for type and interface optimization:\n\n1. **Analyze Type/Interface Creation**: Look for any type or interface definitions in the changed files\n2. **Cross-Reference Usage**: Check if these types/interfaces are used in other files across the codebase\n3. **Identify Consolidation Opportunities**: Find types/interfaces that should be moved to common types files\n\nFor each issue found:\n1. **Create/Update Common Types File**: Move reusable types to `src/types/common.ts` or appropriate domain-specific types file\n2. **Update Imports**: Ensure all existing usage points are updated with proper import statements\n3. **Maintain Type Safety**: Verify that all changes maintain TypeScript compilation and type safety\n\nFocus on:\n- Types/interfaces used across multiple files\n- Domain-specific types that belong in dedicated type files\n- Reducing code duplication and improving maintainability\n- Following the project's ES module import patterns with `.js` extensions\n\nProvide specific file changes and import updates needed."
+  }
+}

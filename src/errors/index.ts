@@ -9,4 +9,4 @@ export {
 } from './AppError.js';
 
 export { errorHandler, notFoundHandler } from './middleware.js';
-export { createErrorResponse, logError } from './utils.js';
+export { createErrorResponse, logError, mapProviderAPIError, logTokenVerificationError } from './utils.js';

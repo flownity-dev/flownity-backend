@@ -9,6 +9,7 @@
 - **Express.js 5.1+**: Web application framework
 - **PassportJS 0.7+**: Authentication middleware
 - **passport-github2**: GitHub OAuth 2.0 strategy
+- **passport-google-oauth20**: Google OAuth 2.0 strategy
 - **express-session 1.18+**: Session management middleware
 
 ## Database & Storage
@@ -35,7 +36,7 @@
 
 ## Security Features
 - **Secure Sessions**: httpOnly, secure, sameSite cookie settings
-- **OAuth 2.0**: GitHub authentication with proper state handling
+- **OAuth 2.0**: GitHub and Google authentication with proper state handling
 - **CSRF Protection**: Built-in session-based protection
 - **SQL Injection Prevention**: Parameterized queries
 

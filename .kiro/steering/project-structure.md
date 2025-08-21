@@ -20,7 +20,7 @@ src/
 ### Authentication (`src/auth/`)
 - **index.ts**: Main authentication exports and user locals middleware
 - **middleware.ts**: Route protection middleware (`ensureAuthenticated`)
-- **passport.ts**: PassportJS configuration and GitHub OAuth strategy
+- **passport.ts**: PassportJS configuration with GitHub and Google OAuth strategies
 
 ### Configuration (`src/config/`)
 - **index.ts**: Environment variable validation and configuration object

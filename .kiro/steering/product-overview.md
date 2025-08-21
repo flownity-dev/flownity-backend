@@ -1,10 +1,10 @@
 # Flownity Backend - Product Overview
 
 ## Product Description
-Flownity Backend is a Node.js authentication service that provides GitHub OAuth 2.0 integration for web applications. It serves as a secure backend foundation for applications requiring GitHub-based user authentication and session management.
+Flownity Backend is a Node.js authentication service that provides GitHub and Google OAuth 2.0 integration for web applications. It serves as a secure backend foundation for applications requiring OAuth-based user authentication and session management.
 
 ## Core Features
-- **GitHub OAuth 2.0 Authentication**: Complete OAuth flow implementation using PassportJS
+- **Multi-Provider OAuth 2.0 Authentication**: Complete OAuth flow implementation for GitHub and Google using PassportJS
 - **Secure Session Management**: Express-session with secure cookie configuration
 - **PostgreSQL Integration**: Database-backed user storage with connection pooling
 - **Comprehensive Error Handling**: Custom error types and user-friendly error responses
@@ -12,8 +12,9 @@ Flownity Backend is a Node.js authentication service that provides GitHub OAuth 
 - **Production Ready**: Graceful shutdown, health checks, and production startup scripts
 
 ## Target Use Cases
-- Web applications requiring GitHub-based authentication
+- Web applications requiring OAuth-based authentication (GitHub or Google)
 - Developer tools and platforms needing GitHub integration
+- Consumer applications requiring Google authentication
 - Applications requiring secure user session management
 - Services needing PostgreSQL-backed user storage
 
@@ -24,7 +25,10 @@ Flownity Backend is a Node.js authentication service that provides GitHub OAuth 
 4. **Extensible Architecture**: Modular structure for easy feature additions
 
 ## API Surface
-- **Authentication Routes**: `/auth/github`, `/auth/github/callback`, `/auth/logout`
+- **Authentication Routes**: 
+  - GitHub: `/auth/github`, `/auth/github/callback`
+  - Google: `/auth/google`, `/auth/google/callback`
+  - Common: `/auth/logout`
 - **Protected Routes**: `/profile` (example of authenticated endpoint)
 - **Development Routes**: `/session-info`, `/test-errors/*` (development only)
 - **Health Monitoring**: Built-in health check capabilities
@@ -32,5 +36,5 @@ Flownity Backend is a Node.js authentication service that provides GitHub OAuth 
 ## Environment Requirements
 - Node.js 18+
 - PostgreSQL database
-- GitHub OAuth App credentials
+- OAuth App credentials (GitHub and/or Google)
 - Secure session secret for production

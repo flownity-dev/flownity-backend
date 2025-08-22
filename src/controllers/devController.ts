@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { DatabaseError, OAuthError, SessionError } from '../errors/index.js';
+import { DatabaseError, OAuthError, SessionError, AuthenticationError } from '../errors/index.js';
 
 export class DevController {
   /**
@@ -27,11 +27,23 @@ export class DevController {
   };
 
   /**
-   * Test session error
+   * Test JWT error
+   */
+  static testJWTError = (_req: Request, _res: Response, next: NextFunction) => {
+    const error = new AuthenticationError(
+      'Test JWT authentication error',
+      401,
+      'TEST_JWT_ERROR'
+    );
+    next(error);
+  };
+
+  /**
+   * Test session error (legacy)
    */
   static testSessionError = (_req: Request, _res: Response, next: NextFunction) => {
     const error = new SessionError(
-      'Test session error',
+      'Test session error (legacy - sessions no longer used)',
       401,
       'TEST_SESSION_ERROR'
     );

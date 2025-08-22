@@ -27,7 +27,7 @@ if (!existsSync(distPath)) {
 
 // Check for required environment variables
 const requiredEnvVars = [
-  'SESSION_SECRET',
+  'JWT_SECRET', 
   'GITHUB_CLIENT_ID',
   'GITHUB_CLIENT_SECRET',
   'DATABASE_HOST',

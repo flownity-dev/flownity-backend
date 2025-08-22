@@ -14,9 +14,6 @@ const router = Router();
 // User profile routes with flexible authentication (session or token)
 router.get('/me', optionalToken(), ensureAuthenticatedFlexible, UserController.getProfile);
 
-// Session-only route (original behavior)
-router.get('/me/session', UserController.getSessionInfo);
-
 // Token-only routes for API clients
 router.get('/me/token', requireToken(), UserController.getProfile);
 

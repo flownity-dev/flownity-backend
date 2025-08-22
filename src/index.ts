@@ -1,10 +1,7 @@
 import express from 'express';
-import session from 'express-session';
 import { config } from './config/index.js';
-import { createSessionConfig } from './config/session.js';
 import { DatabaseConnection, initializeDatabase } from './database/index.js';
-import { configurePassport, passport, addUserToLocals } from './auth/index.js';
-import { ensureSession, sessionHealthCheck } from './middleware/session.js';
+import { configurePassport, passport } from './auth/index.js';
 import { errorHandler, notFoundHandler } from './errors/index.js';
 import { logger, LogCategory } from './utils/index.js';
 import routes from './routes/index.js';
@@ -15,19 +12,8 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration with secure settings
-app.use(session(createSessionConfig()));
-
-// Session middleware
-app.use(ensureSession);
-app.use(sessionHealthCheck);
-
-// Initialize Passport
+// Initialize Passport (without session support)
 app.use(passport.initialize());
-app.use(passport.session());
-
-// Add user information to response locals
-app.use(addUserToLocals);
 
 // Mount all routes
 app.use('/', routes);
@@ -82,11 +68,12 @@ async function startServer() {
         logger.server('Development mode active', {
           hotReload: 'enabled',
           debugRoutes: 'available',
+          authType: 'JWT-based',
           testRoutes: [
-            '/session-info',
+            '/token-info',
             '/test-errors/database',
             '/test-errors/oauth',
-            '/test-errors/session',
+            '/test-errors/jwt',
             '/test-errors/generic'
           ]
         });

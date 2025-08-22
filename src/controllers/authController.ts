@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { passport } from '../auth/index.js';
-import { destroySession } from '../config/session.js';
+import { passport, generateToken } from '../auth/index.js';
 import { OAuthError } from '../errors/index.js';
 import { logger } from '../utils/index.js';
+import type { DatabaseUser } from '../types/common.js';
 
 export class AuthController {
   /**
@@ -23,7 +23,7 @@ export class AuthController {
   static githubCallback = (req: Request, res: Response, next: NextFunction) => {
     const requestLogger = logger.withRequest(req);
     
-    passport.authenticate('github', (err: any, user: any, _info: any) => {
+    passport.authenticate('github', (err: any, user: DatabaseUser, _info: any) => {
       if (err) {
         requestLogger.oauth('OAuth callback failed with error', {
           step: 'callback_error',
@@ -33,7 +33,11 @@ export class AuthController {
         });
         
         if (err instanceof OAuthError) {
-          return res.redirect('/?error=oauth_failed&message=' + encodeURIComponent(err.message));
+          return res.status(400).json({
+            success: false,
+            error: 'oauth_failed',
+            message: err.message
+          });
         }
         return next(err);
       }
@@ -46,21 +50,16 @@ export class AuthController {
           provider: 'github'
         });
         
-        return res.redirect('/?error=oauth_denied&message=' + encodeURIComponent('GitHub authentication was cancelled or denied'));
+        return res.status(401).json({
+          success: false,
+          error: 'oauth_denied',
+          message: 'GitHub authentication was cancelled or denied'
+        });
       }
       
-      req.logIn(user, (loginErr) => {
-        if (loginErr) {
-          requestLogger.session('Failed to establish session after authentication', {
-            action: 'login_session_failed',
-            success: false,
-            error: loginErr.message,
-            userId: user.id,
-            provider: 'github'
-          });
-          
-          return next(new OAuthError('Failed to establish session after authentication', 500, 'SESSION_LOGIN_FAILED'));
-        }
+      try {
+        // Generate JWT token instead of creating session
+        const token = generateToken(user);
         
         requestLogger.auth('User successfully logged in via OAuth', {
           action: 'oauth_login_complete',
@@ -71,8 +70,30 @@ export class AuthController {
           username: user.username
         });
         
-        res.redirect('/');
-      });
+        res.json({
+          success: true,
+          message: 'Authentication successful',
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            email: user.email,
+            provider: user.provider,
+            providerId: user.providerId
+          }
+        });
+      } catch (tokenError) {
+        requestLogger.auth('Failed to generate JWT token after authentication', {
+          action: 'jwt_generation_failed',
+          success: false,
+          error: tokenError instanceof Error ? tokenError.message : String(tokenError),
+          userId: user.id,
+          provider: 'github'
+        });
+        
+        return next(new OAuthError('Failed to generate authentication token', 500, 'JWT_GENERATION_FAILED'));
+      }
     })(req, res, next);
   };
 
@@ -82,7 +103,7 @@ export class AuthController {
   static googleCallback = (req: Request, res: Response, next: NextFunction) => {
     const requestLogger = logger.withRequest(req);
     
-    passport.authenticate('google', (err: any, user: any, _info: any) => {
+    passport.authenticate('google', (err: any, user: DatabaseUser, _info: any) => {
       if (err) {
         requestLogger.oauth('OAuth callback failed with error', {
           step: 'callback_error',
@@ -92,7 +113,11 @@ export class AuthController {
         });
         
         if (err instanceof OAuthError) {
-          return res.redirect('/?error=oauth_failed&message=' + encodeURIComponent(err.message));
+          return res.status(400).json({
+            success: false,
+            error: 'oauth_failed',
+            message: err.message
+          });
         }
         return next(err);
       }
@@ -105,21 +130,16 @@ export class AuthController {
           provider: 'google'
         });
         
-        return res.redirect('/?error=oauth_denied&message=' + encodeURIComponent('Google authentication was cancelled or denied'));
+        return res.status(401).json({
+          success: false,
+          error: 'oauth_denied',
+          message: 'Google authentication was cancelled or denied'
+        });
       }
       
-      req.logIn(user, (loginErr) => {
-        if (loginErr) {
-          requestLogger.session('Failed to establish session after authentication', {
-            action: 'login_session_failed',
-            success: false,
-            error: loginErr.message,
-            userId: user.id,
-            provider: 'google'
-          });
-          
-          return next(new OAuthError('Failed to establish session after authentication', 500, 'SESSION_LOGIN_FAILED'));
-        }
+      try {
+        // Generate JWT token instead of creating session
+        const token = generateToken(user);
         
         requestLogger.auth('User successfully logged in via OAuth', {
           action: 'oauth_login_complete',
@@ -130,54 +150,90 @@ export class AuthController {
           username: user.username
         });
         
-        res.redirect('/');
-      });
+        res.json({
+          success: true,
+          message: 'Authentication successful',
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            email: user.email,
+            provider: user.provider,
+            providerId: user.providerId
+          }
+        });
+      } catch (tokenError) {
+        requestLogger.auth('Failed to generate JWT token after authentication', {
+          action: 'jwt_generation_failed',
+          success: false,
+          error: tokenError instanceof Error ? tokenError.message : String(tokenError),
+          userId: user.id,
+          provider: 'google'
+        });
+        
+        return next(new OAuthError('Failed to generate authentication token', 500, 'JWT_GENERATION_FAILED'));
+      }
     })(req, res, next);
   };
 
   /**
-   * Handle user logout
+   * Handle user logout (JWT-based)
+   * Note: With JWT, logout is handled client-side by discarding the token
    */
   static logout = (req: Request, res: Response, next: NextFunction) => {
     const requestLogger = logger.withRequest(req);
-    const user = req.user;
     
-    requestLogger.auth('User logout initiated', {
-      action: 'logout_start',
-      userId: user ? (user as any).id : undefined,
-      username: user ? (user as any).username : undefined
+    requestLogger.auth('JWT logout request received', {
+      action: 'jwt_logout',
+      success: true,
+      message: 'Client should discard JWT token'
     });
     
-    req.logout((err) => {
-      if (err) {
-        requestLogger.auth('Logout failed during passport logout', {
-          action: 'logout_failed',
+    res.json({
+      success: true,
+      message: 'Logout successful. Please discard your authentication token.'
+    });
+  };
+
+  /**
+   * Refresh JWT token
+   */
+  static refreshToken = (req: Request, res: Response, next: NextFunction) => {
+    const requestLogger = logger.withRequest(req);
+    
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
           success: false,
-          error: err.message,
-          userId: user ? (user as any).id : undefined
+          error: 'token_missing',
+          message: 'Authentication token required for refresh'
         });
-        return next(err);
       }
 
-      destroySession(req, res, (sessionErr) => {
-        if (sessionErr) {
-          requestLogger.session('Session destruction failed during logout', {
-            action: 'logout_session_failed',
-            success: false,
-            error: sessionErr.message
-          });
-          return next(sessionErr);
-        }
-        
-        requestLogger.auth('User logout completed successfully', {
-          action: 'logout_complete',
-          success: true,
-          userId: user ? (user as any).id : undefined,
-          username: user ? (user as any).username : undefined
-        });
-        
-        res.redirect('/');
+      const token = authHeader.split(' ')[1];
+      const { refreshToken } = require('../auth/jwt.js');
+      const newToken = refreshToken(token);
+      
+      requestLogger.auth('JWT token refreshed successfully', {
+        action: 'jwt_refresh_success',
+        success: true
       });
-    });
+      
+      res.json({
+        success: true,
+        message: 'Token refreshed successfully',
+        token: newToken
+      });
+    } catch (error) {
+      requestLogger.auth('JWT token refresh failed', {
+        action: 'jwt_refresh_failed',
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      next(error);
+    }
   };
 }

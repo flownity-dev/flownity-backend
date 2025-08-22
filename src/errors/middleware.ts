@@ -26,11 +26,6 @@ export function errorHandler(
     logError(error, req, 'Global Error Handler');
   }
 
-  // Handle session errors with automatic re-authentication
-  if (error instanceof SessionError) {
-    handleSessionError(error, req, res);
-    return;
-  }
 
   // Handle token verification errors with appropriate responses
   if (error instanceof TokenVerificationError || error instanceof ProviderAPIError) {
@@ -48,36 +43,6 @@ export function errorHandler(
     const userMessage = getUserFriendlyMessage(error);
     const errorHtml = createErrorPage(statusCode, userMessage, error, isDevelopment);
     res.status(statusCode).send(errorHtml);
-  }
-}
-
-/**
- * Handle session-specific errors with automatic re-authentication
- */
-function handleSessionError(error: SessionError, req: Request, res: Response): void {
-  // Clear any existing session data
-  if (req.session) {
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('Error destroying session:', err);
-      }
-    });
-  }
-
-  // Clear session cookie
-  res.clearCookie('connect.sid');
-
-  if (acceptsJson(req)) {
-    res.status(401).json({
-      error: 'SessionError',
-      message: 'Your session has expired. Please log in again.',
-      statusCode: 401,
-      requiresReauth: true,
-      loginUrl: '/auth/github'
-    });
-  } else {
-    // Redirect to home page with error message
-    res.redirect('/?error=session_expired&message=' + encodeURIComponent('Your session has expired. Please log in again.'));
   }
 }
 

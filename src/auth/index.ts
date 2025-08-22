@@ -1,4 +1,22 @@
 export { configurePassport } from './passport.js';
+export { default as passport } from './passport.js';
+
+// JWT exports
+export {
+  generateToken,
+  verifyToken as verifyJWTToken,
+  extractTokenFromHeader,
+  refreshToken
+} from './jwt.js';
+export {
+  requireJWT,
+  optionalJWT,
+  getJWTUser,
+  isJWTAuthenticated,
+  addJWTUserToLocals
+} from './jwtMiddleware.js';
+
+// Legacy session middleware (deprecated)
 export { 
   ensureAuthenticated, 
   ensureNotAuthenticated, 
@@ -6,9 +24,8 @@ export {
   ensureAuthenticatedFlexible,
   addUserToLocalsFlexible
 } from './middleware.js';
-export { default as passport } from './passport.js';
 
-// Token verification exports
+// OAuth token verification exports (for external tokens)
 export {
   verifyToken,
   requireToken,

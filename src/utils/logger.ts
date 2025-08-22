@@ -293,7 +293,6 @@ class RequestLogger {
       url: req.originalUrl || req.url,
       userAgent: req.get?.('User-Agent'),
       ip: req.ip,
-      sessionId: req.sessionID
     };
 
     if (req.user) {

@@ -19,4 +19,7 @@ if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
 // Logout route
 router.post('/logout', AuthController.logout);
 
+// Token refresh route
+router.post('/refresh', AuthController.refreshToken);
+
 export default router;

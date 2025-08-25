@@ -13,14 +13,14 @@ router.get('/trash', requireJWT, ProjectController.getDeletedProjects);
 // GET /api/v1/projects/:id - Get a specific project by ID
 router.get('/:id', requireJWT, ProjectController.getProject);
 
-// POST /api/v1/projects - Create a new project 
+// POST /api/v1/projects - Create a new project
 router.post('/', requireJWT, ProjectController.createProject);
 
-// POST /api/v1/projects/:id/restore - Restore a soft deleted project
-router.post('/:id/restore', requireJWT, ProjectController.restoreProject);
+// PUT /api/v1/projects/:id - Update a project
+router.put('/:id', requireJWT, ProjectController.updateProject);
 
-// GET /api/v1/projects/trash - Get all soft deleted projects
-router.get('/trash', requireJWT, ProjectController.getDeletedProjects);
+// DELETE /api/v1/projects/:id - Soft delete a project
+router.delete('/:id', requireJWT, ProjectController.deleteProject);
 
 // POST /api/v1/projects/:id/restore - Restore a soft deleted project
 router.post('/:id/restore', requireJWT, ProjectController.restoreProject);

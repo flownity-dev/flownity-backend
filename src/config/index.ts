@@ -7,6 +7,7 @@ export interface AppConfig {
   PORT: number;
   NODE_ENV: string;
   SESSION_SECRET: string;
+  JWT_SECRET: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   GOOGLE_CLIENT_ID: string;
@@ -23,6 +24,7 @@ export interface AppConfig {
 function validateConfig(): AppConfig {
   const requiredEnvVars = [
     'SESSION_SECRET',
+    'JWT_SECRET',
     'DATABASE_HOST',
     'DATABASE_NAME',
     'DATABASE_USER',
@@ -47,6 +49,7 @@ function validateConfig(): AppConfig {
     PORT: parseInt(process.env.PORT || '3000', 10),
     NODE_ENV: process.env.NODE_ENV || 'development',
     SESSION_SECRET: process.env.SESSION_SECRET!,
+    JWT_SECRET: process.env.JWT_SECRET!,
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || '',
     GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || '',
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',

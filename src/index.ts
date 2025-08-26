@@ -8,6 +8,8 @@ import { ensureAuthenticated } from './auth/middleware.js';
 import { ensureSession, sessionHealthCheck } from './middleware/session.js';
 import { errorHandler, notFoundHandler, OAuthError, DatabaseError, SessionError } from './errors/index.js';
 import { logger, LogCategory } from './utils/index.js';
+import { generateJWTToken } from './utils/jwt.js';
+import { formatSuccessResponse, formatErrorResponse } from './types/auth.js';
 
 const app = express();
 
@@ -33,11 +35,11 @@ app.use(addUserToLocals);
 app.get('/', (req, res) => {
   const isAuthenticated = req.isAuthenticated();
   const user = req.user;
-  
+
   // Check for error messages from redirects
   const errorType = req.query.error as string;
   const errorMessage = req.query.message as string;
-  
+
   let errorHtml = '';
   if (errorType && errorMessage) {
     errorHtml = `
@@ -69,7 +71,7 @@ app.get('/', (req, res) => {
     if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
       authOptions.push('<a href="/auth/google">Login with Google</a>');
     }
-    
+
     res.send(`
       <h1>Flownity Backend - OAuth Authentication</h1>
       ${errorHtml}
@@ -87,8 +89,8 @@ if (config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET) {
 
 // Google OAuth routes (if configured)
 if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
-  app.get('/auth/google', passport.authenticate('google', { 
-    scope: ['profile', 'email'] 
+  app.get('/auth/google', passport.authenticate('google', {
+    scope: ['profile', 'email']
   }));
 }
 
@@ -97,79 +99,15 @@ if (config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET) {
   app.get('/auth/github/callback',
     (req, res, next) => {
       const requestLogger = logger.withRequest(req);
-      
-      passport.authenticate('github', (err: any, user: any, _info: any) => {
-      if (err) {
-        requestLogger.oauth('OAuth callback failed with error', {
-          step: 'callback_error',
-          success: false,
-          error: err.message
-        });
-        
-        // Handle OAuth errors
-        if (err instanceof OAuthError) {
-          return res.redirect('/?error=oauth_failed&message=' + encodeURIComponent(err.message));
-        }
-        // Pass other errors to error handler
-        return next(err);
-      }
-      
-      if (!user) {
-        requestLogger.oauth('OAuth callback failed - user denied access', {
-          step: 'callback_denied',
-          success: false,
-          error: 'user_denied_access'
-        });
-        
-        // Authentication failed but no error (user denied access)
-        return res.redirect('/?error=oauth_denied&message=' + encodeURIComponent('GitHub authentication was cancelled or denied'));
-      }
-      
-      // Log the user in
-      req.logIn(user, (loginErr) => {
-        if (loginErr) {
-          requestLogger.session('Failed to establish session after authentication', {
-            action: 'login_session_failed',
-            success: false,
-            error: loginErr.message,
-            userId: user.id
-          });
-          
-          return next(new OAuthError('Failed to establish session after authentication', 500, 'SESSION_LOGIN_FAILED'));
-        }
-        
-        requestLogger.auth('User successfully logged in via OAuth', {
-          action: 'oauth_login_complete',
-          success: true,
-          userId: user.id,
-          providerId: user.providerId,
-          provider: user.provider,
-          username: user.username
-        });
-        
-        // Successful authentication, redirect to home page
-        res.redirect('/');
-      });
-    })(req, res, next);
-  }
-  );
-}
 
-// Google callback route (if configured)
-if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
-  app.get('/auth/google/callback',
-    (req, res, next) => {
-      const requestLogger = logger.withRequest(req);
-      
-      passport.authenticate('google', (err: any, user: any, _info: any) => {
+      passport.authenticate('github', (err: any, user: any, _info: any) => {
         if (err) {
           requestLogger.oauth('OAuth callback failed with error', {
             step: 'callback_error',
             success: false,
-            error: err.message,
-            provider: 'google'
+            error: err.message
           });
-          
+
           // Handle OAuth errors
           if (err instanceof OAuthError) {
             return res.redirect('/?error=oauth_failed&message=' + encodeURIComponent(err.message));
@@ -177,19 +115,18 @@ if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
           // Pass other errors to error handler
           return next(err);
         }
-        
+
         if (!user) {
           requestLogger.oauth('OAuth callback failed - user denied access', {
             step: 'callback_denied',
             success: false,
-            error: 'user_denied_access',
-            provider: 'google'
+            error: 'user_denied_access'
           });
-          
+
           // Authentication failed but no error (user denied access)
-          return res.redirect('/?error=oauth_denied&message=' + encodeURIComponent('Google authentication was cancelled or denied'));
+          return res.redirect('/?error=oauth_denied&message=' + encodeURIComponent('GitHub authentication was cancelled or denied'));
         }
-        
+
         // Log the user in
         req.logIn(user, (loginErr) => {
           if (loginErr) {
@@ -197,13 +134,12 @@ if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
               action: 'login_session_failed',
               success: false,
               error: loginErr.message,
-              userId: user.id,
-              provider: 'google'
+              userId: user.id
             });
-            
+
             return next(new OAuthError('Failed to establish session after authentication', 500, 'SESSION_LOGIN_FAILED'));
           }
-          
+
           requestLogger.auth('User successfully logged in via OAuth', {
             action: 'oauth_login_complete',
             success: true,
@@ -212,7 +148,7 @@ if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
             provider: user.provider,
             username: user.username
           });
-          
+
           // Successful authentication, redirect to home page
           res.redirect('/');
         });
@@ -221,16 +157,111 @@ if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
   );
 }
 
+// Google callback route (if configured)
+if (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET) {
+  app.get('/auth/google/callback',
+    (req, res, next) => {
+      const requestLogger = logger.withRequest(req);
+
+      passport.authenticate('google', (err: any, user: any, _info: any) => {
+        if (err) {
+          requestLogger.oauth('OAuth callback failed with error', {
+            step: 'callback_error',
+            success: false,
+            error: err.message,
+            provider: 'google'
+          });
+
+          // Handle OAuth errors with JSON response
+          if (err instanceof OAuthError) {
+            const errorResponse = formatErrorResponse(
+              'Google authentication failed',
+              err.errorCode || 'OAUTH_ERROR',
+              err.message
+            );
+            return res.status(401).json(errorResponse);
+          }
+
+          // Handle other errors with JSON response
+          const errorResponse = formatErrorResponse(
+            'Authentication failed',
+            'INTERNAL_ERROR',
+            'An unexpected error occurred during authentication'
+          );
+          return res.status(500).json(errorResponse);
+        }
+
+        if (!user) {
+          requestLogger.oauth('OAuth callback failed - user denied access', {
+            step: 'callback_denied',
+            success: false,
+            error: 'user_denied_access',
+            provider: 'google'
+          });
+
+          // Authentication failed but no error (user denied access)
+          const errorResponse = formatErrorResponse(
+            'Google authentication was cancelled or denied',
+            'OAUTH_DENIED',
+            'User denied access to Google account'
+          );
+          return res.status(401).json(errorResponse);
+        }
+
+        try {
+          // Generate JWT token
+          const token = generateJWTToken({
+            userId: user.id,
+            providerId: user.providerId,
+            provider: user.provider,
+            username: user.username,
+            displayName: user.displayName
+          });
+
+          requestLogger.auth('User successfully logged in via OAuth', {
+            action: 'oauth_login_complete',
+            success: true,
+            userId: user.id,
+            providerId: user.providerId,
+            provider: user.provider,
+            username: user.username
+          });
+
+          // Return JSON response with token and user info
+          const successResponse = formatSuccessResponse(token, user);
+          res.json(successResponse);
+
+        } catch (jwtError) {
+          requestLogger.auth('JWT token generation failed', {
+            action: 'jwt_generation_failed',
+            success: false,
+            error: jwtError instanceof Error ? jwtError.message : String(jwtError),
+            userId: user.id,
+            provider: 'google'
+          });
+
+          const errorResponse = formatErrorResponse(
+            'Authentication successful but token generation failed',
+            'JWT_GENERATION_FAILED',
+            'Unable to generate authentication token'
+          );
+          return res.status(500).json(errorResponse);
+        }
+      })(req, res, next);
+    }
+  );
+}
+
 app.post('/auth/logout', (req, res, next) => {
   const requestLogger = logger.withRequest(req);
   const user = req.user;
-  
+
   requestLogger.auth('User logout initiated', {
     action: 'logout_start',
     userId: user ? (user as any).id : undefined,
     username: user ? (user as any).username : undefined
   });
-  
+
   req.logout((err) => {
     if (err) {
       requestLogger.auth('Logout failed during passport logout', {
@@ -252,14 +283,14 @@ app.post('/auth/logout', (req, res, next) => {
         });
         return next(sessionErr);
       }
-      
+
       requestLogger.auth('User logout completed successfully', {
         action: 'logout_complete',
         success: true,
         userId: user ? (user as any).id : undefined,
         username: user ? (user as any).username : undefined
       });
-      
+
       res.redirect('/');
     });
   });
@@ -422,14 +453,14 @@ async function startServer() {
       port: config.PORT,
       environment: config.NODE_ENV
     });
-    
+
     // Ensure database connection is closed on startup failure
     try {
       await DatabaseConnection.close();
     } catch (closeError) {
       logger.error(LogCategory.DATABASE, 'Failed to close database connection during startup cleanup', closeError instanceof Error ? closeError : new Error(String(closeError)));
     }
-    
+
     process.exit(1);
   }
 }
@@ -458,7 +489,7 @@ async function gracefulShutdown(signal: string) {
       logger.server('Closing HTTP server', {
         action: 'server_close'
       });
-      
+
       await new Promise<void>((resolve, reject) => {
         server.close((err: any) => {
           if (err) {
@@ -468,7 +499,7 @@ async function gracefulShutdown(signal: string) {
           }
         });
       });
-      
+
       logger.server('HTTP server closed successfully', {
         action: 'server_closed'
       });
@@ -479,9 +510,9 @@ async function gracefulShutdown(signal: string) {
       logger.server('Closing database connections', {
         action: 'database_close'
       });
-      
+
       await DatabaseConnection.close();
-      
+
       logger.server('Database connections closed successfully', {
         action: 'database_closed'
       });
@@ -500,12 +531,12 @@ async function gracefulShutdown(signal: string) {
 
   } catch (error) {
     clearTimeout(shutdownTimeout);
-    
+
     logger.error(LogCategory.SERVER, 'Error during graceful shutdown', error instanceof Error ? error : new Error(String(error)), {
       signal,
       action: 'graceful_shutdown_error'
     });
-    
+
     process.exit(1);
   }
 }
@@ -520,7 +551,7 @@ process.on('uncaughtException', (error) => {
     action: 'uncaught_exception',
     pid: process.pid
   });
-  
+
   // Attempt graceful shutdown
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
@@ -532,7 +563,7 @@ process.on('unhandledRejection', (reason, promise) => {
     promise: promise.toString(),
     pid: process.pid
   });
-  
+
   // Attempt graceful shutdown
   gracefulShutdown('UNHANDLED_REJECTION');
 });

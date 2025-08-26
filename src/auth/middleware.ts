@@ -91,7 +91,7 @@ export function ensureNotAuthenticated(req: Request, res: Response, next: NextFu
   });
 
   // Redirect authenticated users to home page
-  res.redirect('/');
+  res.redirect('http://localhost:3000');
 }
 
 /**

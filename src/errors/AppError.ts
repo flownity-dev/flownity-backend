@@ -29,6 +29,7 @@ export class AppError extends Error {
  * OAuth-related errors
  */
 export class OAuthError extends AppError {
+    code: string | undefined;
     constructor(message: string, statusCode: number = 401, errorCode?: string) {
         super(message, statusCode, true, errorCode);
         this.name = 'OAuthError';

@@ -56,6 +56,9 @@ export interface LogEntry {
  * Enhanced logging utility with structured logging and development-friendly output
  */
 class Logger {
+  http(arg0: string, arg1: { method: any; url: any; baseURL: any; hasAuth: boolean; }) {
+      throw new Error('Method not implemented.');
+  }
   private isDevelopment: boolean;
 
   constructor() {

@@ -1,29 +1,10 @@
 import DatabaseConnection from '../database/connection.js';
 import { DatabaseError, ValidationError } from '../errors/index.js';
 import { logger } from '../utils/index.js';
+import type { GitHubProfile, GoogleProfile, Provider } from '../types/common.js';
 
-export interface GitHubProfile {
-    id: string;
-    username: string;
-    displayName: string;
-    name?: {
-        givenName?: string;
-        familyName?: string;
-    };
-    emails?: Array<{ value: string; verified: boolean }>;
-    photos?: Array<{ value: string }>;
-}
-
-export interface GoogleProfile {
-    id: string;
-    displayName: string;
-    name?: {
-        givenName?: string;
-        familyName?: string;
-    };
-    emails?: Array<{ value: string; verified: boolean }>;
-    photos?: Array<{ value: string }>;
-}
+// Re-export for backward compatibility
+export type { GitHubProfile, GoogleProfile } from '../types/common.js';
 
 export interface UserRow {
     id: number;
@@ -69,7 +50,7 @@ export class User {
      * @param provider - The provider (default: 'github')
      * @returns User instance or null if not found
      */
-    static async findByProviderId(providerId: string, provider: string = 'github'): Promise<User | null> {
+    static async findByProviderId(providerId: string, provider: Provider = 'github'): Promise<User | null> {
         if (!providerId || typeof providerId !== 'string' || providerId.trim() === '') {
             throw new ValidationError('Provider ID is required and must be a non-empty string');
         }
@@ -158,7 +139,7 @@ export class User {
      * @param provider - The provider (default: 'github')
      * @returns New User instance
      */
-    static async create(profile: GitHubProfile | GoogleProfile, provider: string = 'github'): Promise<User> {
+    static async create(profile: GitHubProfile | GoogleProfile, provider: Provider = 'github'): Promise<User> {
         // Validate profile data
         if (!profile || typeof profile !== 'object') {
             throw new ValidationError('Profile data is required');

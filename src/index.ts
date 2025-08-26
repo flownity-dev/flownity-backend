@@ -1,15 +1,15 @@
 import express from 'express';
-import session from 'express-session';
 import { config } from './config/index.js';
-import { createSessionConfig, destroySession } from './config/session.js';
 import { DatabaseConnection, initializeDatabase } from './database/index.js';
-import { configurePassport, passport, addUserToLocals } from './auth/index.js';
-import { ensureAuthenticated } from './auth/middleware.js';
-import { ensureSession, sessionHealthCheck } from './middleware/session.js';
-import { errorHandler, notFoundHandler, OAuthError, DatabaseError, SessionError } from './errors/index.js';
+import { configurePassport, passport } from './auth/index.js';
+import { errorHandler, notFoundHandler } from './errors/index.js';
 import { logger, LogCategory } from './utils/index.js';
+<<<<<<< HEAD
 import { generateJWTToken } from './utils/jwt.js';
 import { formatSuccessResponse, formatErrorResponse } from './types/auth.js';
+=======
+import routes from './routes/index.js';
+>>>>>>> 565b210c3df84d9e5768bb355af0b3f38e23eda4
 
 const app = express();
 
@@ -17,17 +17,10 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration with secure settings
-app.use(session(createSessionConfig()));
-
-// Session middleware
-app.use(ensureSession);
-app.use(sessionHealthCheck);
-
-// Initialize Passport
+// Initialize Passport (without session support)
 app.use(passport.initialize());
-app.use(passport.session());
 
+<<<<<<< HEAD
 // Add user information to response locals
 app.use(addUserToLocals);
 
@@ -368,6 +361,10 @@ if (config.NODE_ENV === 'development') {
     next(error);
   });
 }
+=======
+// Mount all routes
+app.use('/', routes);
+>>>>>>> 565b210c3df84d9e5768bb355af0b3f38e23eda4
 
 // Error handling middleware (must be last)
 app.use(notFoundHandler);
@@ -419,11 +416,12 @@ async function startServer() {
         logger.server('Development mode active', {
           hotReload: 'enabled',
           debugRoutes: 'available',
+          authType: 'JWT-based',
           testRoutes: [
-            '/session-info',
+            '/token-info',
             '/test-errors/database',
             '/test-errors/oauth',
-            '/test-errors/session',
+            '/test-errors/jwt',
             '/test-errors/generic'
           ]
         });

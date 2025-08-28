@@ -79,7 +79,8 @@ export function ensureNotAuthenticated(req: Request, res: Response, next: NextFu
   });
 
   // Redirect authenticated users to home page
-  res.redirect('http://localhost:3000');
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  res.redirect(frontendUrl);
 }
 
 /**

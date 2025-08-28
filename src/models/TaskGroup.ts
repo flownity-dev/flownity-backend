@@ -5,6 +5,7 @@ import { logger } from '../utils/index.js';
 export interface TaskGroupRow {
     id: number;
     task_group_title: string;
+    project_id: number;
     due_from: Date | null;
     due_to: Date | null;
     created_by: number;
@@ -15,12 +16,14 @@ export interface TaskGroupRow {
 
 export interface CreateTaskGroupData {
     task_group_title: string;
+    project_id: number;
     due_from?: Date | null;
     due_to?: Date | null;
 }
 
 export interface UpdateTaskGroupData {
     task_group_title?: string;
+    project_id?: number;
     due_from?: Date | null;
     due_to?: Date | null;
 }
@@ -28,6 +31,7 @@ export interface UpdateTaskGroupData {
 export class TaskGroup {
     public readonly id: number;
     public readonly taskGroupTitle: string;
+    public readonly projectId: number;
     public readonly dueFrom: Date | null;
     public readonly dueTo: Date | null;
     public readonly createdBy: number;
@@ -38,6 +42,7 @@ export class TaskGroup {
     constructor(data: TaskGroupRow) {
         this.id = data.id;
         this.taskGroupTitle = data.task_group_title;
+        this.projectId = data.project_id;
         this.dueFrom = data.due_from;
         this.dueTo = data.due_to;
         this.createdBy = data.created_by;
@@ -140,13 +145,14 @@ export class TaskGroup {
             });
 
             const query = `
-                INSERT INTO flwnty_task_group (task_group_title, due_from, due_to, created_by)
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO flwnty_task_group (task_group_title, project_id, due_from, due_to, created_by)
+                VALUES ($1, $2, $3, $4, $5)
                 RETURNING *
             `;
 
             const values = [
                 data.task_group_title.trim(),
+                data.project_id,
                 data.due_from || null,
                 data.due_to || null,
                 userId
@@ -203,6 +209,14 @@ export class TaskGroup {
             }
             updateFields.push(`task_group_title = $${paramCount++}`);
             values.push(data.task_group_title.trim());
+        }
+
+        if (data.project_id !== undefined) {
+            if (typeof data.project_id !== 'number') {
+                throw new ValidationError('Project ID must be a number');
+            }
+            updateFields.push(`project_id = $${paramCount++}`);
+            values.push(data.project_id);
         }
 
         if (data.due_from !== undefined) {
@@ -436,6 +450,7 @@ export class TaskGroup {
         return {
             id: this.id,
             task_group_title: this.taskGroupTitle,
+            project_id: this.projectId,
             due_from: this.dueFrom,
             due_to: this.dueTo,
             created_by: this.createdBy,

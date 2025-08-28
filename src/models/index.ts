@@ -6,3 +6,6 @@ export type { ProjectRow, CreateProjectData, UpdateProjectData } from './Project
 
 export { TaskGroup } from './TaskGroup.js';
 export type { TaskGroupRow, CreateTaskGroupData, UpdateTaskGroupData } from './TaskGroup.js';
+
+export { Task } from './Task.js';
+export type { TaskRow, CreateTaskData, UpdateTaskData } from './Task.js';

@@ -23,6 +23,26 @@ export async function initializeDatabase(): Promise<void> {
     `;
 
     await DatabaseConnection.query(createUsersTableQuery);
+
+    // Create flwnty_task table if it doesn't exist
+    const createTaskTableQuery = `
+      CREATE TABLE IF NOT EXISTS flwnty_task (
+        id BIGSERIAL PRIMARY KEY,
+        task_group_id BIGINT REFERENCES flwnty_task_group(id) ON DELETE SET NULL,
+        project_id BIGINT REFERENCES flwnty_project(id) ON DELETE SET NULL,
+        task_title VARCHAR(255) NOT NULL,
+        description TEXT,
+        due_from TIMESTAMP,
+        due_to TIMESTAMP,
+        assignee BIGINT REFERENCES flwnty_users(id) ON DELETE SET NULL,
+        approver BIGINT REFERENCES flwnty_users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP
+      );
+    `;
+
+    await DatabaseConnection.query(createTaskTableQuery);
     console.log('Database schema initialized successfully');
 
     // Create indexes for faster lookups
@@ -30,6 +50,11 @@ export async function initializeDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_flwnty_users_provider_id ON flwnty_users(provider_id);
       CREATE INDEX IF NOT EXISTS idx_flwnty_users_provider ON flwnty_users(provider);
       CREATE INDEX IF NOT EXISTS idx_flwnty_users_email ON flwnty_users(email);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_assignee ON flwnty_task(assignee);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_approver ON flwnty_task(approver);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_task_group_id ON flwnty_task(task_group_id);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_project_id ON flwnty_task(project_id);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_deleted_at ON flwnty_task(deleted_at);
     `;
 
     await DatabaseConnection.query(createIndexQuery);
@@ -65,6 +90,12 @@ export async function createUpdateTimestampTrigger(): Promise<void> {
       DROP TRIGGER IF EXISTS update_flwnty_users_updated_at ON flwnty_users;
       CREATE TRIGGER update_flwnty_users_updated_at
         BEFORE UPDATE ON flwnty_users
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+      
+      DROP TRIGGER IF EXISTS update_flwnty_task_updated_at ON flwnty_task;
+      CREATE TRIGGER update_flwnty_task_updated_at
+        BEFORE UPDATE ON flwnty_task
         FOR EACH ROW
         EXECUTE FUNCTION update_updated_at_column();
     `;

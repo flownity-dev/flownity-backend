@@ -84,30 +84,44 @@ The production startup script includes:
 | `npm run format` | Format code with Prettier |
 | `npm run type-check` | Check TypeScript types without building |
 
+## 🚨 Security Setup
+
+**CRITICAL: Never commit real credentials to version control!**
+
+See [SECURITY_SETUP.md](./SECURITY_SETUP.md) for detailed security configuration.
+
 ## Environment Configuration
 
-Required environment variables:
+Required environment variables (use `.env.example` as template):
 
 ```env
 # Server Configuration
 PORT=3000
 NODE_ENV=development
 
-# Session Configuration  
-SESSION_SECRET=your-super-secret-session-key
+# JWT Configuration
+JWT_SECRET=your-jwt-secret-here
+JWT_EXPIRES_IN=24h
 
 # GitHub OAuth Configuration
 GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
 CALLBACK_URL=http://localhost:3000/auth/github/callback
 
+# Google OAuth Configuration  
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
+
 # Database Configuration
-DATABASE_HOST=localhost
+DATABASE_HOST=your-database-host
 DATABASE_PORT=5432
-DATABASE_NAME=flownity
-DATABASE_USER=your-db-user
-DATABASE_PASSWORD=your-db-password
+DATABASE_NAME=your-database-name
+DATABASE_USER=your-database-user
+DATABASE_PASSWORD=your-database-password
 ```
+
+⚠️ **Always use placeholder values in `.env` file committed to git!**
 
 ## API Endpoints
 

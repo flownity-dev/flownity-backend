@@ -30,10 +30,6 @@
     "axios": "^1.11.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
-<<<<<<< HEAD
-    "express-session": "^1.18.2",
-=======
->>>>>>> 565b210c3df84d9e5768bb355af0b3f38e23eda4
     "jsonwebtoken": "^9.0.2",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",

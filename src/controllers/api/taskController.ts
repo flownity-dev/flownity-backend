@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { getJWTUser } from '../../auth/index.js';
-import { TaskGroup, CreateTaskGroupData, UpdateTaskGroupData } from '../../models/TaskGroup.js';
+import { Task, CreateTaskData, UpdateTaskData } from '../../models/Task.js';
 import { ValidationError } from '../../errors/index.js';
 
-export class TaskGroupController {
+export class TaskController {
     /**
-     * Get all task groups for the authenticated user
+     * Get all tasks for the authenticated user
      */
-    static getTaskGroups = async (req: Request, res: Response) => {
+    static getTasks = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
 
         if (!jwtUser) {
@@ -19,12 +19,12 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroups = await TaskGroup.findByUserId(jwtUser.userId);
+            const tasks = await Task.findByUserId(jwtUser.userId);
 
             return res.json({
                 success: true,
                 data: {
-                    taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON())
+                    tasks: tasks.map(task => task.toJSON())
                 }
             });
         } catch (err) {
@@ -37,9 +37,9 @@ export class TaskGroupController {
     };
 
     /**
-     * Get a single task group by ID
+     * Get a single task by ID
      */
-    static getTaskGroup = async (req: Request, res: Response) => {
+    static getTask = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
 
         if (!jwtUser) {
@@ -51,39 +51,39 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroupId = parseInt(req.params.id!);
+            const taskId = parseInt(req.params.id!);
             
-            if (isNaN(taskGroupId)) {
+            if (isNaN(taskId)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Invalid task group ID',
-                    message: 'Task group ID must be a valid number'
+                    error: 'Invalid task ID',
+                    message: 'Task ID must be a valid number'
                 });
             }
 
-            const taskGroup = await TaskGroup.findById(taskGroupId);
+            const task = await Task.findById(taskId);
 
-            if (!taskGroup) {
+            if (!task) {
                 return res.status(404).json({
                     success: false,
-                    error: 'Task group not found',
-                    message: 'Task group with the specified ID does not exist'
+                    error: 'Task not found',
+                    message: 'Task with the specified ID does not exist'
                 });
             }
 
-            // Check if user owns the task group
-            if (taskGroup.createdBy !== jwtUser.userId) {
+            // Check if user has access to the task (assignee or approver)
+            if (task.assignee !== jwtUser.userId && task.approver !== jwtUser.userId) {
                 return res.status(403).json({
                     success: false,
                     error: 'Access denied',
-                    message: 'You can only access your own task groups'
+                    message: 'You can only access tasks where you are the assignee or approver'
                 });
             }
 
             return res.json({
                 success: true,
                 data: {
-                    taskGroup: taskGroup.toJSON()
+                    task: task.toJSON()
                 }
             });
         } catch (err) {
@@ -96,9 +96,9 @@ export class TaskGroupController {
     };
 
     /**
-     * Create a new task group
+     * Create a new task
      */
-    static createTaskGroup = async (req: Request, res: Response) => {
+    static createTask = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
 
         if (!jwtUser) {
@@ -110,21 +110,25 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroupData: CreateTaskGroupData = {
-                task_group_title: req.body.task_group_title,
-                project_id: req.body.project_id,
+            const taskData: CreateTaskData = {
+                task_group_id: req.body.task_group_id || null,
+                project_id: req.body.project_id || null,
+                task_title: req.body.task_title,
+                description: req.body.description || null,
                 due_from: req.body.due_from ? new Date(req.body.due_from) : null,
-                due_to: req.body.due_to ? new Date(req.body.due_to) : null
+                due_to: req.body.due_to ? new Date(req.body.due_to) : null,
+                assignee: req.body.assignee || null,
+                approver: req.body.approver || null
             };
 
-            const taskGroup = await TaskGroup.create(jwtUser.userId, taskGroupData);
+            const task = await Task.create(taskData);
 
             return res.status(201).json({
                 success: true,
                 data: {
-                    taskGroup: taskGroup.toJSON()
+                    task: task.toJSON()
                 },
-                message: 'Task group created successfully'
+                message: 'Task created successfully'
             });
         } catch (err) {
             if (err instanceof ValidationError) {
@@ -144,9 +148,9 @@ export class TaskGroupController {
     };
 
     /**
-     * Update an existing task group
+     * Update an existing task
      */
-    static updateTaskGroup = async (req: Request, res: Response) => {
+    static updateTask = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
 
         if (!jwtUser) {
@@ -158,20 +162,29 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroupId = parseInt(req.params.id!);
+            const taskId = parseInt(req.params.id!);
             
-            if (isNaN(taskGroupId)) {
+            if (isNaN(taskId)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Invalid task group ID',
-                    message: 'Task group ID must be a valid number'
+                    error: 'Invalid task ID',
+                    message: 'Task ID must be a valid number'
                 });
             }
 
-            const updateData: UpdateTaskGroupData = {};
+            const updateData: UpdateTaskData = {};
             
-            if (req.body.task_group_title !== undefined) {
-                updateData.task_group_title = req.body.task_group_title;
+            if (req.body.task_group_id !== undefined) {
+                updateData.task_group_id = req.body.task_group_id;
+            }
+            if (req.body.project_id !== undefined) {
+                updateData.project_id = req.body.project_id;
+            }
+            if (req.body.task_title !== undefined) {
+                updateData.task_title = req.body.task_title;
+            }
+            if (req.body.description !== undefined) {
+                updateData.description = req.body.description;
             }
             if (req.body.due_from !== undefined) {
                 updateData.due_from = req.body.due_from ? new Date(req.body.due_from) : null;
@@ -179,23 +192,29 @@ export class TaskGroupController {
             if (req.body.due_to !== undefined) {
                 updateData.due_to = req.body.due_to ? new Date(req.body.due_to) : null;
             }
+            if (req.body.assignee !== undefined) {
+                updateData.assignee = req.body.assignee;
+            }
+            if (req.body.approver !== undefined) {
+                updateData.approver = req.body.approver;
+            }
 
-            const taskGroup = await TaskGroup.update(taskGroupId, jwtUser.userId, updateData);
+            const task = await Task.update(taskId, jwtUser.userId, updateData);
 
-            if (!taskGroup) {
+            if (!task) {
                 return res.status(404).json({
                     success: false,
-                    error: 'Task group not found',
-                    message: 'Task group with the specified ID does not exist or you do not have permission to update it'
+                    error: 'Task not found',
+                    message: 'Task with the specified ID does not exist or you do not have permission to update it'
                 });
             }
 
             return res.json({
                 success: true,
                 data: {
-                    taskGroup: taskGroup.toJSON()
+                    task: task.toJSON()
                 },
-                message: 'Task group updated successfully'
+                message: 'Task updated successfully'
             });
         } catch (err) {
             if (err instanceof ValidationError) {
@@ -215,9 +234,9 @@ export class TaskGroupController {
     };
 
     /**
-     * Delete a task group (soft delete)
+     * Delete a task (soft delete)
      */
-    static deleteTaskGroup = async (req: Request, res: Response) => {
+    static deleteTask = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
 
         if (!jwtUser) {
@@ -229,29 +248,29 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroupId = parseInt(req.params.id!);
+            const taskId = parseInt(req.params.id!);
             
-            if (isNaN(taskGroupId)) {
+            if (isNaN(taskId)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Invalid task group ID',
-                    message: 'Task group ID must be a valid number'
+                    error: 'Invalid task ID',
+                    message: 'Task ID must be a valid number'
                 });
             }
 
-            const deleted = await TaskGroup.delete(taskGroupId, jwtUser.userId);
+            const deleted = await Task.delete(taskId, jwtUser.userId);
 
             if (!deleted) {
                 return res.status(404).json({
                     success: false,
-                    error: 'Task group not found',
-                    message: 'Task group with the specified ID does not exist or you do not have permission to delete it'
+                    error: 'Task not found',
+                    message: 'Task with the specified ID does not exist or you do not have permission to delete it'
                 });
             }
 
             return res.json({
                 success: true,
-                message: 'Task group deleted successfully'
+                message: 'Task deleted successfully'
             });
         } catch (err) {
             if (err instanceof ValidationError) {
@@ -271,9 +290,9 @@ export class TaskGroupController {
     };
 
     /**
-     * Get all soft deleted task groups for the authenticated user
+     * Get all soft deleted tasks for the authenticated user
      */
-    static getDeletedTaskGroups = async (req: Request, res: Response) => {
+    static getDeletedTasks = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
 
         if (!jwtUser) {
@@ -285,12 +304,12 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroups = await TaskGroup.findDeletedByUserId(jwtUser.userId);
+            const tasks = await Task.findDeletedByUserId(jwtUser.userId);
 
             return res.json({
                 success: true,
                 data: {
-                    taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON())
+                    tasks: tasks.map(task => task.toJSON())
                 }
             });
         } catch (err) {
@@ -303,9 +322,9 @@ export class TaskGroupController {
     };
 
     /**
-     * Restore a soft deleted task group
+     * Restore a soft deleted task
      */
-    static restoreTaskGroup = async (req: Request, res: Response) => {
+    static restoreTask = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
 
         if (!jwtUser) {
@@ -317,29 +336,29 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroupId = parseInt(req.params.id!);
+            const taskId = parseInt(req.params.id!);
             
-            if (isNaN(taskGroupId)) {
+            if (isNaN(taskId)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Invalid task group ID',
-                    message: 'Task group ID must be a valid number'
+                    error: 'Invalid task ID',
+                    message: 'Task ID must be a valid number'
                 });
             }
 
-            const restored = await TaskGroup.restore(taskGroupId, jwtUser.userId);
+            const restored = await Task.restore(taskId, jwtUser.userId);
 
             if (!restored) {
                 return res.status(404).json({
                     success: false,
-                    error: 'Task group not found',
-                    message: 'Task group with the specified ID does not exist in trash or you do not have permission to restore it'
+                    error: 'Task not found',
+                    message: 'Task with the specified ID does not exist in trash or you do not have permission to restore it'
                 });
             }
 
             return res.json({
                 success: true,
-                message: 'Task group restored successfully'
+                message: 'Task restored successfully'
             });
         } catch (err) {
             if (err instanceof ValidationError) {
@@ -359,9 +378,9 @@ export class TaskGroupController {
     };
 
     /**
-     * Permanently delete a task group (hard delete)
+     * Permanently delete a task (hard delete)
      */
-    static forceDeleteTaskGroup = async (req: Request, res: Response) => {
+    static forceDeleteTask = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
 
         if (!jwtUser) {
@@ -373,29 +392,29 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroupId = parseInt(req.params.id!);
+            const taskId = parseInt(req.params.id!);
             
-            if (isNaN(taskGroupId)) {
+            if (isNaN(taskId)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Invalid task group ID',
-                    message: 'Task group ID must be a valid number'
+                    error: 'Invalid task ID',
+                    message: 'Task ID must be a valid number'
                 });
             }
 
-            const deleted = await TaskGroup.forceDelete(taskGroupId, jwtUser.userId);
+            const deleted = await Task.forceDelete(taskId, jwtUser.userId);
 
             if (!deleted) {
                 return res.status(404).json({
                     success: false,
-                    error: 'Task group not found',
-                    message: 'Task group with the specified ID does not exist or you do not have permission to delete it'
+                    error: 'Task not found',
+                    message: 'Task with the specified ID does not exist or you do not have permission to delete it'
                 });
             }
 
             return res.json({
                 success: true,
-                message: 'Task group permanently deleted successfully'
+                message: 'Task permanently deleted successfully'
             });
         } catch (err) {
             if (err instanceof ValidationError) {

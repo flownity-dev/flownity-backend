@@ -1,19 +1,17 @@
 import * as dotenv from 'dotenv';
-import type {StringValue} from "ms"
+import type { StringValue } from "ms"
 
 // Load environment variables from .env file
-dotenv.config();
+// Only load .env in development to avoid overriding production env vars
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 export interface AppConfig {
   PORT: number;
   NODE_ENV: string;
-<<<<<<< HEAD
-  SESSION_SECRET: string;
-  JWT_SECRET: string;
-=======
   JWT_SECRET: string;
   JWT_EXPIRES_IN: StringValue;
->>>>>>> 565b210c3df84d9e5768bb355af0b3f38e23eda4
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   GOOGLE_CLIENT_ID: string;
@@ -29,10 +27,6 @@ export interface AppConfig {
 
 function validateConfig(): AppConfig {
   const requiredEnvVars = [
-<<<<<<< HEAD
-    'SESSION_SECRET',
-=======
->>>>>>> 565b210c3df84d9e5768bb355af0b3f38e23eda4
     'JWT_SECRET',
     'DATABASE_HOST',
     'DATABASE_NAME',
@@ -57,13 +51,8 @@ function validateConfig(): AppConfig {
   return {
     PORT: parseInt(process.env.PORT || '3000', 10),
     NODE_ENV: process.env.NODE_ENV || 'development',
-<<<<<<< HEAD
-    SESSION_SECRET: process.env.SESSION_SECRET!,
-    JWT_SECRET: process.env.JWT_SECRET!,
-=======
     JWT_SECRET: process.env.JWT_SECRET!,
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN as StringValue || '24h',
->>>>>>> 565b210c3df84d9e5768bb355af0b3f38e23eda4
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || '',
     GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || '',
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',

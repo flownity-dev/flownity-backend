@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import { getJWTUser } from '../../auth/index.js';
 import { Project, CreateProjectData, UpdateProjectData } from '../../models/Project.js';
 import { ValidationError } from '../../errors/index.js';
+import { PaginationUtils } from '../../utils/index.js';
 
 export class ProjectController {
     /**
-     * Get all projects for the authenticated user
+     * Get all projects for the authenticated user with pagination
      */
     static getProjects = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
@@ -19,15 +20,30 @@ export class ProjectController {
         }
 
         try {
-            const projects = await Project.findByUserId(jwtUser.userId);
+            // Parse and validate pagination parameters
+            const paginationParams = PaginationUtils.validateAndNormalize(req.query);
+            
+            // Get paginated projects
+            const { projects, totalCount } = await Project.findByUserIdPaginated(jwtUser.userId, paginationParams);
 
-            return res.json({
-                success: true,
-                data: {
-                    projects: projects.map(project => project.toJSON())
-                }
-            });
+            // Create paginated response
+            const response = PaginationUtils.createResponse(
+                projects.map(project => project.toJSON()),
+                'projects',
+                paginationParams,
+                totalCount
+            );
+
+            return res.json(response);
         } catch (err) {
+            if (err instanceof ValidationError) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    message: err.message
+                });
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Database error',
@@ -304,7 +320,7 @@ export class ProjectController {
     };
 
     /**
-     * Get all soft deleted projects for the authenticated user
+     * Get all soft deleted projects for the authenticated user with pagination
      */
     static getDeletedProjects = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
@@ -318,15 +334,30 @@ export class ProjectController {
         }
 
         try {
-            const projects = await Project.findDeletedByUserId(jwtUser.userId);
+            // Parse and validate pagination parameters
+            const paginationParams = PaginationUtils.validateAndNormalize(req.query);
+            
+            // Get paginated deleted projects
+            const { projects, totalCount } = await Project.findDeletedByUserIdPaginated(jwtUser.userId, paginationParams);
 
-            return res.json({
-                success: true,
-                data: {
-                    projects: projects.map(project => project.toJSON())
-                }
-            });
+            // Create paginated response
+            const response = PaginationUtils.createResponse(
+                projects.map(project => project.toJSON()),
+                'projects',
+                paginationParams,
+                totalCount
+            );
+
+            return res.json(response);
         } catch (err) {
+            if (err instanceof ValidationError) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    message: err.message
+                });
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Database error',

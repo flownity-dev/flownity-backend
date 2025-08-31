@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import { getJWTUser } from '../../auth/index.js';
 import { TaskGroup, CreateTaskGroupData, UpdateTaskGroupData } from '../../models/TaskGroup.js';
 import { ValidationError } from '../../errors/index.js';
+import { PaginationUtils } from '../../utils/index.js';
 
 export class TaskGroupController {
     /**
-     * Get all task groups for the authenticated user
+     * Get all task groups for the authenticated user with pagination
      */
     static getTaskGroups = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
@@ -19,15 +20,30 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroups = await TaskGroup.findByUserId(jwtUser.userId);
+            // Parse and validate pagination parameters
+            const paginationParams = PaginationUtils.validateAndNormalize(req.query);
+            
+            // Get paginated task groups
+            const { taskGroups, totalCount } = await TaskGroup.findByUserIdPaginated(jwtUser.userId, paginationParams);
 
-            return res.json({
-                success: true,
-                data: {
-                    taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON())
-                }
-            });
+            // Create paginated response
+            const response = PaginationUtils.createResponse(
+                taskGroups.map(taskGroup => taskGroup.toJSON()),
+                'taskGroups',
+                paginationParams,
+                totalCount
+            );
+
+            return res.json(response);
         } catch (err) {
+            if (err instanceof ValidationError) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    message: err.message
+                });
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Database error',
@@ -271,7 +287,7 @@ export class TaskGroupController {
     };
 
     /**
-     * Get all soft deleted task groups for the authenticated user
+     * Get all soft deleted task groups for the authenticated user with pagination
      */
     static getDeletedTaskGroups = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
@@ -285,15 +301,30 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroups = await TaskGroup.findDeletedByUserId(jwtUser.userId);
+            // Parse and validate pagination parameters
+            const paginationParams = PaginationUtils.validateAndNormalize(req.query);
+            
+            // Get paginated deleted task groups
+            const { taskGroups, totalCount } = await TaskGroup.findDeletedByUserIdPaginated(jwtUser.userId, paginationParams);
 
-            return res.json({
-                success: true,
-                data: {
-                    taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON())
-                }
-            });
+            // Create paginated response
+            const response = PaginationUtils.createResponse(
+                taskGroups.map(taskGroup => taskGroup.toJSON()),
+                'taskGroups',
+                paginationParams,
+                totalCount
+            );
+
+            return res.json(response);
         } catch (err) {
+            if (err instanceof ValidationError) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    message: err.message
+                });
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Database error',

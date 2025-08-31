@@ -1,6 +1,6 @@
 import DatabaseConnection from '../database/connection.js';
 import { DatabaseError, ValidationError } from '../errors/index.js';
-import { logger } from '../utils/index.js';
+import { logger, PaginationParams } from '../utils/index.js';
 
 export interface TaskRow {
     id: number;
@@ -428,6 +428,118 @@ export class Task {
                 'Failed to find deleted tasks by user ID',
                 500,
                 'TASK_FIND_DELETED_ERROR'
+            );
+        }
+    }
+
+    /**
+     * Get paginated tasks for a user (where user is assignee or approver)
+     */
+    static async findByUserIdPaginated(
+        userId: number, 
+        params: PaginationParams
+    ): Promise<{ tasks: Task[]; totalCount: number }> {
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Finding paginated tasks by user ID', {
+                operation: 'findByUserIdPaginated',
+                table: 'flwnty_task',
+                userId,
+                page: params.page,
+                limit: params.limit
+            });
+
+            // First, get the total count
+            const countQuery = `
+                SELECT COUNT(*) as total FROM flwnty_task
+                WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NULL
+            `;
+            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
+            const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
+
+            // Then get the paginated data
+            const offset = (params.page - 1) * params.limit;
+            const dataQuery = `
+                SELECT * FROM flwnty_task
+                WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                LIMIT $2 OFFSET $3
+            `;
+            const dataResult = await DatabaseConnection.query<TaskRow>(dataQuery, [userId, params.limit, offset]);
+            const tasks = dataResult.rows.map(row => new Task(row));
+
+            return { tasks, totalCount };
+        } catch (error) {
+            logger.database('Error finding paginated tasks by user ID', {
+                operation: 'findByUserIdPaginated',
+                table: 'flwnty_task',
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to find paginated tasks by user ID',
+                500,
+                'TASK_FIND_PAGINATED_ERROR'
+            );
+        }
+    }
+
+    /**
+     * Get paginated soft deleted tasks for a user
+     */
+    static async findDeletedByUserIdPaginated(
+        userId: number, 
+        params: PaginationParams
+    ): Promise<{ tasks: Task[]; totalCount: number }> {
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Finding paginated deleted tasks by user ID', {
+                operation: 'findDeletedByUserIdPaginated',
+                table: 'flwnty_task',
+                userId,
+                page: params.page,
+                limit: params.limit
+            });
+
+            // First, get the total count
+            const countQuery = `
+                SELECT COUNT(*) as total FROM flwnty_task
+                WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NOT NULL
+            `;
+            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
+            const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
+
+            // Then get the paginated data
+            const offset = (params.page - 1) * params.limit;
+            const dataQuery = `
+                SELECT * FROM flwnty_task
+                WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NOT NULL
+                ORDER BY deleted_at DESC
+                LIMIT $2 OFFSET $3
+            `;
+            const dataResult = await DatabaseConnection.query<TaskRow>(dataQuery, [userId, params.limit, offset]);
+            const tasks = dataResult.rows.map(row => new Task(row));
+
+            return { tasks, totalCount };
+        } catch (error) {
+            logger.database('Error finding paginated deleted tasks by user ID', {
+                operation: 'findDeletedByUserIdPaginated',
+                table: 'flwnty_task',
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to find paginated deleted tasks by user ID',
+                500,
+                'TASK_FIND_DELETED_PAGINATED_ERROR'
             );
         }
     }

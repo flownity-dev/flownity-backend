@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import { getJWTUser } from '../../auth/index.js';
 import { TaskGroup, CreateTaskGroupData, UpdateTaskGroupData } from '../../models/TaskGroup.js';
 import { ValidationError } from '../../errors/index.js';
+import { PaginationUtils } from '../../types/pagination.js';
 
 export class TaskGroupController {
     /**
-     * Get all task groups for the authenticated user
+     * Get all task groups for the authenticated user with pagination
      */
     static getTaskGroups = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
@@ -19,15 +20,35 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroups = await TaskGroup.findByUserId(jwtUser.userId);
+            // Validate and normalize pagination parameters
+            const paginationParams = PaginationUtils.validateAndNormalize(req.query);
+            
+            // Get paginated task groups
+            const { taskGroups, totalCount } = await TaskGroup.findByUserIdPaginated(jwtUser.userId, paginationParams);
+            
+            // Calculate pagination metadata
+            const paginationMetadata = PaginationUtils.calculateMetadata(paginationParams, totalCount);
+            
+            // Check if limit was capped and add warning message
+            let message: string | undefined;
+            if (req.query.limit && parseInt(req.query.limit as string, 10) > PaginationUtils.MAX_LIMIT) {
+                message = `Limit was capped at maximum value of ${PaginationUtils.MAX_LIMIT}`;
+            }
 
-            return res.json({
-                success: true,
-                data: {
-                    taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON())
-                }
-            });
+            return res.json(PaginationUtils.createResponse(
+                { taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON()) },
+                paginationMetadata,
+                message
+            ));
         } catch (err) {
+            if (err instanceof Error && err.message.includes('must be a positive integer')) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    message: err.message
+                });
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Database error',
@@ -271,7 +292,7 @@ export class TaskGroupController {
     };
 
     /**
-     * Get all soft deleted task groups for the authenticated user
+     * Get all soft deleted task groups for the authenticated user with pagination
      */
     static getDeletedTaskGroups = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
@@ -285,15 +306,35 @@ export class TaskGroupController {
         }
 
         try {
-            const taskGroups = await TaskGroup.findDeletedByUserId(jwtUser.userId);
+            // Validate and normalize pagination parameters
+            const paginationParams = PaginationUtils.validateAndNormalize(req.query);
+            
+            // Get paginated deleted task groups
+            const { taskGroups, totalCount } = await TaskGroup.findDeletedByUserIdPaginated(jwtUser.userId, paginationParams);
+            
+            // Calculate pagination metadata
+            const paginationMetadata = PaginationUtils.calculateMetadata(paginationParams, totalCount);
+            
+            // Check if limit was capped and add warning message
+            let message: string | undefined;
+            if (req.query.limit && parseInt(req.query.limit as string, 10) > PaginationUtils.MAX_LIMIT) {
+                message = `Limit was capped at maximum value of ${PaginationUtils.MAX_LIMIT}`;
+            }
 
-            return res.json({
-                success: true,
-                data: {
-                    taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON())
-                }
-            });
+            return res.json(PaginationUtils.createResponse(
+                { taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON()) },
+                paginationMetadata,
+                message
+            ));
         } catch (err) {
+            if (err instanceof Error && err.message.includes('must be a positive integer')) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    message: err.message
+                });
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Database error',

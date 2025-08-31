@@ -1,6 +1,7 @@
 import DatabaseConnection from '../database/connection.js';
 import { DatabaseError, ValidationError } from '../errors/index.js';
 import { logger } from '../utils/index.js';
+import { PaginationParams, PaginationUtils } from '../types/pagination.js';
 
 export interface ProjectRow {
     id: number;
@@ -85,6 +86,62 @@ export class Project {
                 'Failed to find projects by user ID',
                 500,
                 'PROJECT_FIND_ERROR'
+            );
+        }
+    }
+
+    /**
+     * Get paginated projects for a user
+     */
+    static async findByUserIdPaginated(
+        userId: number,
+        params: PaginationParams
+    ): Promise<{ projects: Project[]; totalCount: number }> {
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Finding paginated projects by user ID', {
+                operation: 'findByUserIdPaginated',
+                table: 'flwnty_project',
+                userId,
+                page: params.page,
+                limit: params.limit
+            });
+
+            // Get total count
+            const countQuery = `
+                SELECT COUNT(*) as total FROM flwnty_project
+                WHERE created_by = $1 AND deleted_at IS NULL
+            `;
+            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
+            const totalCount = parseInt(countResult.rows[0]!.total, 10);
+
+            // Get paginated data
+            const offset = PaginationUtils.calculateOffset(params.page, params.limit);
+            const dataQuery = `
+                SELECT * FROM flwnty_project
+                WHERE created_by = $1 AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                LIMIT $2 OFFSET $3
+            `;
+            const dataResult = await DatabaseConnection.query<ProjectRow>(dataQuery, [userId, params.limit, offset]);
+            const projects = dataResult.rows.map(row => new Project(row));
+
+            return { projects, totalCount };
+        } catch (error) {
+            logger.database('Error finding paginated projects by user ID', {
+                operation: 'findByUserIdPaginated',
+                table: 'flwnty_project',
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to find paginated projects by user ID',
+                500,
+                'PROJECT_FIND_PAGINATED_ERROR'
             );
         }
     }
@@ -394,6 +451,62 @@ export class Project {
                 'Failed to find deleted projects by user ID',
                 500,
                 'PROJECT_FIND_DELETED_ERROR'
+            );
+        }
+    }
+
+    /**
+     * Get paginated soft deleted projects for a user
+     */
+    static async findDeletedByUserIdPaginated(
+        userId: number,
+        params: PaginationParams
+    ): Promise<{ projects: Project[]; totalCount: number }> {
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Finding paginated deleted projects by user ID', {
+                operation: 'findDeletedByUserIdPaginated',
+                table: 'flwnty_project',
+                userId,
+                page: params.page,
+                limit: params.limit
+            });
+
+            // Get total count
+            const countQuery = `
+                SELECT COUNT(*) as total FROM flwnty_project
+                WHERE created_by = $1 AND deleted_at IS NOT NULL
+            `;
+            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
+            const totalCount = parseInt(countResult.rows[0]!.total, 10);
+
+            // Get paginated data
+            const offset = PaginationUtils.calculateOffset(params.page, params.limit);
+            const dataQuery = `
+                SELECT * FROM flwnty_project
+                WHERE created_by = $1 AND deleted_at IS NOT NULL
+                ORDER BY deleted_at DESC
+                LIMIT $2 OFFSET $3
+            `;
+            const dataResult = await DatabaseConnection.query<ProjectRow>(dataQuery, [userId, params.limit, offset]);
+            const projects = dataResult.rows.map(row => new Project(row));
+
+            return { projects, totalCount };
+        } catch (error) {
+            logger.database('Error finding paginated deleted projects by user ID', {
+                operation: 'findDeletedByUserIdPaginated',
+                table: 'flwnty_project',
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to find paginated deleted projects by user ID',
+                500,
+                'PROJECT_FIND_DELETED_PAGINATED_ERROR'
             );
         }
     }

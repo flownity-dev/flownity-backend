@@ -6,6 +6,7 @@ export interface TaskGroupRow {
     id: number;
     task_group_title: string;
     project_id: number;
+    status_id: number | null;
     due_from: Date | null;
     due_to: Date | null;
     created_by: number;
@@ -17,6 +18,7 @@ export interface TaskGroupRow {
 export interface CreateTaskGroupData {
     task_group_title: string;
     project_id: number;
+    status_id?: number | null;
     due_from?: Date | null;
     due_to?: Date | null;
 }
@@ -24,6 +26,7 @@ export interface CreateTaskGroupData {
 export interface UpdateTaskGroupData {
     task_group_title?: string;
     project_id?: number;
+    status_id?: number | null;
     due_from?: Date | null;
     due_to?: Date | null;
 }
@@ -32,6 +35,7 @@ export class TaskGroup {
     public readonly id: number;
     public readonly taskGroupTitle: string;
     public readonly projectId: number;
+    public readonly statusId: number | null;
     public readonly dueFrom: Date | null;
     public readonly dueTo: Date | null;
     public readonly createdBy: number;
@@ -43,6 +47,7 @@ export class TaskGroup {
         this.id = data.id;
         this.taskGroupTitle = data.task_group_title;
         this.projectId = data.project_id;
+        this.statusId = data.status_id;
         this.dueFrom = data.due_from;
         this.dueTo = data.due_to;
         this.createdBy = data.created_by;
@@ -145,14 +150,15 @@ export class TaskGroup {
             });
 
             const query = `
-                INSERT INTO flwnty_task_group (task_group_title, project_id, due_from, due_to, created_by)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO flwnty_task_group (task_group_title, project_id, status_id, due_from, due_to, created_by)
+                VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
             `;
 
             const values = [
                 data.task_group_title.trim(),
                 data.project_id,
+                data.status_id || null,
                 data.due_from || null,
                 data.due_to || null,
                 userId
@@ -217,6 +223,11 @@ export class TaskGroup {
             }
             updateFields.push(`project_id = $${paramCount++}`);
             values.push(data.project_id);
+        }
+
+        if (data.status_id !== undefined) {
+            updateFields.push(`status_id = $${paramCount++}`);
+            values.push(data.status_id);
         }
 
         if (data.due_from !== undefined) {
@@ -563,6 +574,7 @@ export class TaskGroup {
             id: this.id,
             task_group_title: this.taskGroupTitle,
             project_id: this.projectId,
+            status_id: this.statusId,
             due_from: this.dueFrom,
             due_to: this.dueTo,
             created_by: this.createdBy,

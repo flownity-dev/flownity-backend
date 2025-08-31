@@ -9,3 +9,6 @@ export type { TaskGroupRow, CreateTaskGroupData, UpdateTaskGroupData } from './T
 
 export { Task } from './Task.js';
 export type { TaskRow, CreateTaskData, UpdateTaskData } from './Task.js';
+
+export { Status } from './Status.js';
+export type { StatusRow, CreateStatusData, UpdateStatusData } from './Status.js';

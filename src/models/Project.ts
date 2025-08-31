@@ -7,6 +7,7 @@ export interface ProjectRow {
     project_title: string;
     project_description: string | null;
     created_by: number;
+    status_id: number | null;
     due_from: Date | null;
     due_to: Date | null;
     created_at: Date;
@@ -17,6 +18,7 @@ export interface ProjectRow {
 export interface CreateProjectData {
     project_title: string;
     project_description?: string | null;
+    status_id?: number | null;
     due_from?: Date | null;
     due_to?: Date | null;
 }
@@ -24,6 +26,7 @@ export interface CreateProjectData {
 export interface UpdateProjectData {
     project_title?: string;
     project_description?: string | null;
+    status_id?: number | null;
     due_from?: Date | null;
     due_to?: Date | null;
 }
@@ -33,6 +36,7 @@ export class Project {
     public readonly projectTitle: string;
     public readonly projectDescription: string | null;
     public readonly createdBy: number;
+    public readonly statusId: number | null;
     public readonly dueFrom: Date | null;
     public readonly dueTo: Date | null;
     public readonly createdAt: Date;
@@ -44,6 +48,7 @@ export class Project {
         this.projectTitle = data.project_title;
         this.projectDescription = data.project_description;
         this.createdBy = data.created_by;
+        this.statusId = data.status_id;
         this.dueFrom = data.due_from;
         this.dueTo = data.due_to;
         this.createdAt = data.created_at;
@@ -145,8 +150,8 @@ export class Project {
             });
 
             const query = `
-                INSERT INTO flwnty_project (project_title, project_description, created_by, due_from, due_to)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO flwnty_project (project_title, project_description, created_by, status_id, due_from, due_to)
+                VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
             `;
 
@@ -154,6 +159,7 @@ export class Project {
                 data.project_title.trim(),
                 data.project_description || null,
                 userId,
+                data.status_id || null,
                 data.due_from || null,
                 data.due_to || null
             ];
@@ -214,6 +220,11 @@ export class Project {
         if (data.project_description !== undefined) {
             updateFields.push(`project_description = $${paramCount++}`);
             values.push(data.project_description);
+        }
+
+        if (data.status_id !== undefined) {
+            updateFields.push(`status_id = $${paramCount++}`);
+            values.push(data.status_id);
         }
 
         if (data.due_from !== undefined) {
@@ -402,7 +413,7 @@ export class Project {
      * Get paginated projects for a user
      */
     static async findByUserIdPaginated(
-        userId: number, 
+        userId: number,
         params: PaginationParams
     ): Promise<{ projects: Project[]; totalCount: number }> {
         if (!userId || typeof userId !== 'number') {
@@ -458,7 +469,7 @@ export class Project {
      * Get paginated soft deleted projects for a user
      */
     static async findDeletedByUserIdPaginated(
-        userId: number, 
+        userId: number,
         params: PaginationParams
     ): Promise<{ projects: Project[]; totalCount: number }> {
         if (!userId || typeof userId !== 'number') {
@@ -560,6 +571,7 @@ export class Project {
             project_title: this.projectTitle,
             project_description: this.projectDescription,
             created_by: this.createdBy,
+            status_id: this.statusId,
             due_from: this.dueFrom,
             due_to: this.dueTo,
             created_at: this.createdAt,

@@ -34,6 +34,11 @@ function validateConfig(): AppConfig {
     'DATABASE_PASSWORD'
   ];
 
+  // Validate JWT secret strength
+  if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters long for security');
+  }
+
   // Check for at least one OAuth provider
   const hasGitHub = process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET && process.env.CALLBACK_URL;
   const hasGoogle = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL;

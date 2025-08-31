@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import { getJWTUser } from '../../auth/index.js';
 import { Task, CreateTaskData, UpdateTaskData } from '../../models/Task.js';
 import { ValidationError } from '../../errors/index.js';
+import { PaginationUtils } from '../../utils/index.js';
 
 export class TaskController {
     /**
-     * Get all tasks for the authenticated user
+     * Get all tasks for the authenticated user with pagination
      */
     static getTasks = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
@@ -19,15 +20,30 @@ export class TaskController {
         }
 
         try {
-            const tasks = await Task.findByUserId(jwtUser.userId);
+            // Parse and validate pagination parameters
+            const paginationParams = PaginationUtils.validateAndNormalize(req.query);
+            
+            // Get paginated tasks
+            const { tasks, totalCount } = await Task.findByUserIdPaginated(jwtUser.userId, paginationParams);
 
-            return res.json({
-                success: true,
-                data: {
-                    tasks: tasks.map(task => task.toJSON())
-                }
-            });
+            // Create paginated response
+            const response = PaginationUtils.createResponse(
+                tasks.map(task => task.toJSON()),
+                'tasks',
+                paginationParams,
+                totalCount
+            );
+
+            return res.json(response);
         } catch (err) {
+            if (err instanceof ValidationError) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    message: err.message
+                });
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Database error',
@@ -290,7 +306,7 @@ export class TaskController {
     };
 
     /**
-     * Get all soft deleted tasks for the authenticated user
+     * Get all soft deleted tasks for the authenticated user with pagination
      */
     static getDeletedTasks = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
@@ -304,15 +320,30 @@ export class TaskController {
         }
 
         try {
-            const tasks = await Task.findDeletedByUserId(jwtUser.userId);
+            // Parse and validate pagination parameters
+            const paginationParams = PaginationUtils.validateAndNormalize(req.query);
+            
+            // Get paginated deleted tasks
+            const { tasks, totalCount } = await Task.findDeletedByUserIdPaginated(jwtUser.userId, paginationParams);
 
-            return res.json({
-                success: true,
-                data: {
-                    tasks: tasks.map(task => task.toJSON())
-                }
-            });
+            // Create paginated response
+            const response = PaginationUtils.createResponse(
+                tasks.map(task => task.toJSON()),
+                'tasks',
+                paginationParams,
+                totalCount
+            );
+
+            return res.json(response);
         } catch (err) {
+            if (err instanceof ValidationError) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    message: err.message
+                });
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Database error',

@@ -13,8 +13,6 @@
 - [ ] Remove any committed `.env` files from git history
 - [ ] Use environment-specific files (`.env.local`, `.env.production`)
 - [ ] Never commit real credentials to version control
-- [ ] **CRITICAL**: Do not override environment variables in production
-- [ ] Ensure dotenv configuration respects existing environment values
 
 ## Security Best Practices Implemented
 
@@ -52,21 +50,13 @@ JWT_SECRET_PROD=your-production-secret
 ```
 
 ### Environment Variable Security
-- **NEVER override production environment variables** with dotenv
-- Use `{ override: false }` or default dotenv behavior to respect existing env vars
 - Production systems should set environment variables at the system level
-- Development `.env` files should only provide fallback values
+- Development `.env` files should provide configuration values
 
 ```typescript
-// ✅ Good - Respects existing environment variables
+// Standard dotenv configuration
 import dotenv from 'dotenv';
-dotenv.config(); // Default behavior - doesn't override existing vars
-
-// ✅ Good - Explicitly prevent override
-dotenv.config({ override: false });
-
-// ❌ Bad - Overrides production environment variables
-dotenv.config({ override: true });
+dotenv.config();
 ```
 
 ### Database Security
@@ -108,12 +98,9 @@ if (!jwtSecret) {
     throw new Error('JWT_SECRET environment variable is required');
 }
 
-// ✅ Good - Dotenv configuration that respects existing values
+// Standard dotenv configuration
 import dotenv from 'dotenv';
-dotenv.config(); // Default - doesn't override existing environment variables
-
-// ❌ Bad - Overriding production environment variables
-dotenv.config({ override: true }); // NEVER do this in production
+dotenv.config();
 
 // ❌ Bad - No validation of critical environment variables
 const jwtSecret = process.env.JWT_SECRET!; // Could be undefined

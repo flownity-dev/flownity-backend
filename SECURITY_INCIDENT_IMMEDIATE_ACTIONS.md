@@ -1,75 +1,71 @@
-# 🚨 IMMEDIATE SECURITY ACTIONS REQUIRED
+# 🚨 SECURITY INCIDENT - IMMEDIATE ACTIONS REQUIRED
 
-## CRITICAL: Credentials Exposed in Version Control
+## Incident Summary
+**Date**: Current
+**Severity**: HIGH
+**Issue**: Production credentials exposed in version control
 
-### Exposed Credentials (ROTATE IMMEDIATELY):
+## Exposed Credentials
 1. **JWT Secret**: `IIdxvHFTQw1eWubVvRt8s0BMzFy0Tjii`
 2. **GitHub OAuth**:
    - Client ID: `Ov23liaZ1IlXw3VaF6Pv`
    - Client Secret: `3fb04cd46179d87d90280720d950384e757b0230`
 3. **Database**:
    - Host: `dpg-d2fjr56mcj7s73eup880-a.oregon-postgres.render.com`
-   - User: `db_flownity_user`
    - Password: `IIdxvHFTQw1eWubVvRt8s0BMzFy0Tjii`
 
-## IMMEDIATE ACTIONS (Do Now):
+## IMMEDIATE ACTIONS (Do within 1 hour)
 
 ### 1. Rotate GitHub OAuth Credentials
-```bash
-# Go to GitHub Developer Settings
-# https://github.com/settings/developers
-# Regenerate client secret for your OAuth app
-```
+- [ ] Go to GitHub Settings > Developer settings > OAuth Apps
+- [ ] Find the app with Client ID `Ov23liaZ1IlXw3VaF6Pv`
+- [ ] Generate new Client Secret
+- [ ] Update production environment variables
 
 ### 2. Change Database Password
-```bash
-# In your Render.com dashboard:
-# 1. Go to your PostgreSQL service
-# 2. Change the database password
-# 3. Update your production environment variables
-```
+- [ ] Access your Render.com PostgreSQL dashboard
+- [ ] Change the database password immediately
+- [ ] Update all applications using this database
 
 ### 3. Generate New JWT Secret
 ```bash
-# Generate cryptographically secure secret
-openssl rand -base64 32
+# Generate a new secure JWT secret
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+- [ ] Update production JWT_SECRET environment variable
+- [ ] This will invalidate all existing user sessions
 
-### 4. Clean Git History
-```bash
-# Remove .env from git history (if committed)
-git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch .env' --prune-empty --tag-name-filter cat -- --all
-git push origin --force --all
-```
+### 4. Review Git History
+- [ ] Check if these credentials appear in other commits
+- [ ] Consider using tools like `git-secrets` or `truffleHog`
 
-### 5. Update Production Environment Variables
-- Set new JWT_SECRET in production
-- Set new DATABASE_PASSWORD in production
-- Set new GitHub OAuth credentials in production
+## FOLLOW-UP ACTIONS (Do within 24 hours)
 
-### 6. Verify Security
-- [ ] All old credentials rotated
-- [ ] Production environment updated
-- [ ] .env removed from repository
-- [ ] .gitignore updated to prevent future exposure
-- [ ] Development uses separate database
+### 1. Audit Access Logs
+- [ ] Check GitHub OAuth app usage logs
+- [ ] Review database access logs
+- [ ] Monitor for unauthorized access attempts
 
-## Environment Setup Going Forward:
+### 2. Implement Security Measures
+- [ ] Set up secret scanning in CI/CD
+- [ ] Add pre-commit hooks to prevent credential commits
+- [ ] Implement proper secret management (AWS Secrets Manager, etc.)
 
-### Development:
-- Copy `.env.local.example` to `.env.local`
-- Use development database (localhost)
-- Use development OAuth apps
-- Generate unique secrets
+### 3. Team Communication
+- [ ] Notify all team members about the incident
+- [ ] Review security practices with the team
+- [ ] Update security training materials
 
-### Production:
-- Set environment variables at system level
-- Never use .env files in production
-- Use separate OAuth apps for production
-- Use strong, unique secrets
+## Prevention Measures
+1. **Never commit real credentials to version control**
+2. **Use environment variables or secret management services**
+3. **Implement pre-commit hooks for secret detection**
+4. **Regular security audits and credential rotation**
+5. **Use different secrets for different purposes**
 
-## Security Monitoring:
-- Monitor for unauthorized access attempts
-- Check database logs for suspicious activity
-- Review OAuth app usage in GitHub settings
-- Set up alerts for failed authentication attempts
+## Status Tracking
+- [ ] Credentials rotated
+- [ ] Production systems updated
+- [ ] Access logs reviewed
+- [ ] Team notified
+- [ ] Prevention measures implemented

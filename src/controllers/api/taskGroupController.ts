@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { getJWTUser } from '../../auth/index.js';
 import { TaskGroup, CreateTaskGroupData, UpdateTaskGroupData } from '../../models/TaskGroup.js';
 import { ValidationError } from '../../errors/index.js';
-import { PaginationUtils } from '../../types/pagination.js';
+import { PaginationUtils } from '../../utils/index.js';
 
 export class TaskGroupController {
     /**
@@ -20,28 +20,23 @@ export class TaskGroupController {
         }
 
         try {
-            // Validate and normalize pagination parameters
+            // Parse and validate pagination parameters
             const paginationParams = PaginationUtils.validateAndNormalize(req.query);
             
             // Get paginated task groups
             const { taskGroups, totalCount } = await TaskGroup.findByUserIdPaginated(jwtUser.userId, paginationParams);
-            
-            // Calculate pagination metadata
-            const paginationMetadata = PaginationUtils.calculateMetadata(paginationParams, totalCount);
-            
-            // Check if limit was capped and add warning message
-            let message: string | undefined;
-            if (req.query.limit && parseInt(req.query.limit as string, 10) > PaginationUtils.MAX_LIMIT) {
-                message = `Limit was capped at maximum value of ${PaginationUtils.MAX_LIMIT}`;
-            }
 
-            return res.json(PaginationUtils.createResponse(
-                { taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON()) },
-                paginationMetadata,
-                message
-            ));
+            // Create paginated response
+            const response = PaginationUtils.createResponse(
+                taskGroups.map(taskGroup => taskGroup.toJSON()),
+                'taskGroups',
+                paginationParams,
+                totalCount
+            );
+
+            return res.json(response);
         } catch (err) {
-            if (err instanceof Error && err.message.includes('must be a positive integer')) {
+            if (err instanceof ValidationError) {
                 return res.status(400).json({
                     success: false,
                     error: 'Validation error',
@@ -306,28 +301,23 @@ export class TaskGroupController {
         }
 
         try {
-            // Validate and normalize pagination parameters
+            // Parse and validate pagination parameters
             const paginationParams = PaginationUtils.validateAndNormalize(req.query);
             
             // Get paginated deleted task groups
             const { taskGroups, totalCount } = await TaskGroup.findDeletedByUserIdPaginated(jwtUser.userId, paginationParams);
-            
-            // Calculate pagination metadata
-            const paginationMetadata = PaginationUtils.calculateMetadata(paginationParams, totalCount);
-            
-            // Check if limit was capped and add warning message
-            let message: string | undefined;
-            if (req.query.limit && parseInt(req.query.limit as string, 10) > PaginationUtils.MAX_LIMIT) {
-                message = `Limit was capped at maximum value of ${PaginationUtils.MAX_LIMIT}`;
-            }
 
-            return res.json(PaginationUtils.createResponse(
-                { taskGroups: taskGroups.map(taskGroup => taskGroup.toJSON()) },
-                paginationMetadata,
-                message
-            ));
+            // Create paginated response
+            const response = PaginationUtils.createResponse(
+                taskGroups.map(taskGroup => taskGroup.toJSON()),
+                'taskGroups',
+                paginationParams,
+                totalCount
+            );
+
+            return res.json(response);
         } catch (err) {
-            if (err instanceof Error && err.message.includes('must be a positive integer')) {
+            if (err instanceof ValidationError) {
                 return res.status(400).json({
                     success: false,
                     error: 'Validation error',

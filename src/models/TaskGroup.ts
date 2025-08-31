@@ -1,7 +1,6 @@
 import DatabaseConnection from '../database/connection.js';
 import { DatabaseError, ValidationError } from '../errors/index.js';
-import { logger } from '../utils/index.js';
-import { PaginationParams, PaginationUtils } from '../types/pagination.js';
+import { logger, PaginationParams } from '../utils/index.js';
 
 export interface TaskGroupRow {
     id: number;
@@ -86,62 +85,6 @@ export class TaskGroup {
                 'Failed to find task groups by user ID',
                 500,
                 'TASK_GROUP_FIND_ERROR'
-            );
-        }
-    }
-
-    /**
-     * Get paginated task groups for a user
-     */
-    static async findByUserIdPaginated(
-        userId: number, 
-        params: PaginationParams
-    ): Promise<{ taskGroups: TaskGroup[]; totalCount: number }> {
-        if (!userId || typeof userId !== 'number') {
-            throw new ValidationError('User ID is required and must be a number');
-        }
-
-        try {
-            logger.database('Finding paginated task groups by user ID', {
-                operation: 'findByUserIdPaginated',
-                table: 'flwnty_task_group',
-                userId,
-                page: params.page,
-                limit: params.limit
-            });
-
-            // Get total count
-            const countQuery = `
-                SELECT COUNT(*) as total FROM flwnty_task_group
-                WHERE created_by = $1 AND deleted_at IS NULL
-            `;
-            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
-            const totalCount = parseInt(countResult.rows[0]!.total, 10);
-
-            // Get paginated data
-            const offset = PaginationUtils.calculateOffset(params.page, params.limit);
-            const dataQuery = `
-                SELECT * FROM flwnty_task_group
-                WHERE created_by = $1 AND deleted_at IS NULL
-                ORDER BY created_at DESC
-                LIMIT $2 OFFSET $3
-            `;
-            const dataResult = await DatabaseConnection.query<TaskGroupRow>(dataQuery, [userId, params.limit, offset]);
-            const taskGroups = dataResult.rows.map(row => new TaskGroup(row));
-
-            return { taskGroups, totalCount };
-        } catch (error) {
-            logger.database('Error finding paginated task groups by user ID', {
-                operation: 'findByUserIdPaginated',
-                table: 'flwnty_task_group',
-                userId,
-                error: error instanceof Error ? error.message : String(error)
-            });
-
-            throw new DatabaseError(
-                'Failed to find paginated task groups by user ID',
-                500,
-                'TASK_GROUP_FIND_PAGINATED_ERROR'
             );
         }
     }
@@ -460,6 +403,62 @@ export class TaskGroup {
     }
 
     /**
+     * Get paginated task groups for a user
+     */
+    static async findByUserIdPaginated(
+        userId: number, 
+        params: PaginationParams
+    ): Promise<{ taskGroups: TaskGroup[]; totalCount: number }> {
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Finding paginated task groups by user ID', {
+                operation: 'findByUserIdPaginated',
+                table: 'flwnty_task_group',
+                userId,
+                page: params.page,
+                limit: params.limit
+            });
+
+            // First, get the total count
+            const countQuery = `
+                SELECT COUNT(*) as total FROM flwnty_task_group
+                WHERE created_by = $1 AND deleted_at IS NULL
+            `;
+            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
+            const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
+
+            // Then get the paginated data
+            const offset = (params.page - 1) * params.limit;
+            const dataQuery = `
+                SELECT * FROM flwnty_task_group
+                WHERE created_by = $1 AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                LIMIT $2 OFFSET $3
+            `;
+            const dataResult = await DatabaseConnection.query<TaskGroupRow>(dataQuery, [userId, params.limit, offset]);
+            const taskGroups = dataResult.rows.map(row => new TaskGroup(row));
+
+            return { taskGroups, totalCount };
+        } catch (error) {
+            logger.database('Error finding paginated task groups by user ID', {
+                operation: 'findByUserIdPaginated',
+                table: 'flwnty_task_group',
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to find paginated task groups by user ID',
+                500,
+                'TASK_GROUP_FIND_PAGINATED_ERROR'
+            );
+        }
+    }
+
+    /**
      * Get paginated soft deleted task groups for a user
      */
     static async findDeletedByUserIdPaginated(
@@ -479,16 +478,16 @@ export class TaskGroup {
                 limit: params.limit
             });
 
-            // Get total count
+            // First, get the total count
             const countQuery = `
                 SELECT COUNT(*) as total FROM flwnty_task_group
                 WHERE created_by = $1 AND deleted_at IS NOT NULL
             `;
             const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
-            const totalCount = parseInt(countResult.rows[0]!.total, 10);
+            const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
 
-            // Get paginated data
-            const offset = PaginationUtils.calculateOffset(params.page, params.limit);
+            // Then get the paginated data
+            const offset = (params.page - 1) * params.limit;
             const dataQuery = `
                 SELECT * FROM flwnty_task_group
                 WHERE created_by = $1 AND deleted_at IS NOT NULL

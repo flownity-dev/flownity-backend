@@ -28,6 +28,9 @@ router.post('/:id/restore', requireJWT, ProjectController.restoreProject);
 // DELETE /api/v1/projects/:id/force - Permanently delete a project
 router.delete('/:id/force', requireJWT, ProjectController.forceDeleteProject);
 
+// GET /api/v1/projects/project-flow/:project_id - Get project flow data
+router.get('/project-flow/:project_id', requireJWT, ProjectController.getProjectFlow);
+
 // Legacy route for backward compatibility
 router.get('/get_all_projects', requireJWT, ProjectController.getProjects);
 

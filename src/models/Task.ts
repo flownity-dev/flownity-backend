@@ -8,6 +8,7 @@ export interface TaskRow {
     project_id: number | null;
     task_title: string;
     description: string | null;
+    status_id: number | null;
     due_from: Date | null;
     due_to: Date | null;
     assignee: number | null;
@@ -22,6 +23,7 @@ export interface CreateTaskData {
     project_id?: number | null;
     task_title: string;
     description?: string | null;
+    status_id?: number | null;
     due_from?: Date | null;
     due_to?: Date | null;
     assignee?: number | null;
@@ -33,6 +35,7 @@ export interface UpdateTaskData {
     project_id?: number | null;
     task_title?: string;
     description?: string | null;
+    status_id?: number | null;
     due_from?: Date | null;
     due_to?: Date | null;
     assignee?: number | null;
@@ -45,6 +48,7 @@ export class Task {
     public readonly projectId: number | null;
     public readonly taskTitle: string;
     public readonly description: string | null;
+    public readonly statusId: number | null;
     public readonly dueFrom: Date | null;
     public readonly dueTo: Date | null;
     public readonly assignee: number | null;
@@ -59,6 +63,7 @@ export class Task {
         this.projectId = data.project_id;
         this.taskTitle = data.task_title;
         this.description = data.description;
+        this.statusId = data.status_id;
         this.dueFrom = data.due_from;
         this.dueTo = data.due_to;
         this.assignee = data.assignee;
@@ -157,8 +162,8 @@ export class Task {
             });
 
             const query = `
-                INSERT INTO flwnty_task (task_group_id, project_id, task_title, description, due_from, due_to, assignee, approver)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                INSERT INTO flwnty_task (task_group_id, project_id, task_title, description, status_id, due_from, due_to, assignee, approver)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 RETURNING *
             `;
 
@@ -167,6 +172,7 @@ export class Task {
                 data.project_id || null,
                 data.task_title.trim(),
                 data.description || null,
+                data.status_id || 1, // Default to 'pending' status
                 data.due_from || null,
                 data.due_to || null,
                 data.assignee || null,
@@ -238,6 +244,11 @@ export class Task {
         if (data.description !== undefined) {
             updateFields.push(`description = $${paramCount++}`);
             values.push(data.description);
+        }
+
+        if (data.status_id !== undefined) {
+            updateFields.push(`status_id = $${paramCount++}`);
+            values.push(data.status_id);
         }
 
         if (data.due_from !== undefined) {
@@ -595,6 +606,7 @@ export class Task {
             project_id: this.projectId,
             task_title: this.taskTitle,
             description: this.description,
+            status_id: this.statusId,
             due_from: this.dueFrom,
             due_to: this.dueTo,
             assignee: this.assignee,

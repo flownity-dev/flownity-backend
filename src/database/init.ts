@@ -24,6 +24,52 @@ export async function initializeDatabase(): Promise<void> {
 
     await DatabaseConnection.query(createUsersTableQuery);
 
+    // Create flwnty_status table if it doesn't exist
+    const createStatusTableQuery = `
+      CREATE TABLE IF NOT EXISTS flwnty_status (
+        id SERIAL PRIMARY KEY,
+        status_name VARCHAR(100) NOT NULL UNIQUE
+      );
+    `;
+
+    await DatabaseConnection.query(createStatusTableQuery);
+
+    // Create flwnty_project table if it doesn't exist
+    const createProjectTableQuery = `
+      CREATE TABLE IF NOT EXISTS flwnty_project (
+        id BIGSERIAL PRIMARY KEY,
+        project_title VARCHAR(255) NOT NULL,
+        project_description TEXT,
+        created_by BIGINT REFERENCES flwnty_users(id) ON DELETE CASCADE,
+        status_id INTEGER REFERENCES flwnty_status(id) ON DELETE SET NULL,
+        due_from TIMESTAMP,
+        due_to TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP
+      );
+    `;
+
+    await DatabaseConnection.query(createProjectTableQuery);
+
+    // Create flwnty_task_group table if it doesn't exist
+    const createTaskGroupTableQuery = `
+      CREATE TABLE IF NOT EXISTS flwnty_task_group (
+        id BIGSERIAL PRIMARY KEY,
+        task_group_title VARCHAR(255) NOT NULL,
+        project_id BIGINT REFERENCES flwnty_project(id) ON DELETE CASCADE,
+        status_id INTEGER REFERENCES flwnty_status(id) ON DELETE SET NULL,
+        due_from TIMESTAMP,
+        due_to TIMESTAMP,
+        created_by BIGINT REFERENCES flwnty_users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP
+      );
+    `;
+
+    await DatabaseConnection.query(createTaskGroupTableQuery);
+
     // Create flwnty_task table if it doesn't exist
     const createTaskTableQuery = `
       CREATE TABLE IF NOT EXISTS flwnty_task (
@@ -32,6 +78,7 @@ export async function initializeDatabase(): Promise<void> {
         project_id BIGINT REFERENCES flwnty_project(id) ON DELETE SET NULL,
         task_title VARCHAR(255) NOT NULL,
         description TEXT,
+        status_id INTEGER REFERENCES flwnty_status(id) ON DELETE SET NULL DEFAULT 1,
         due_from TIMESTAMP,
         due_to TIMESTAMP,
         assignee BIGINT REFERENCES flwnty_users(id) ON DELETE SET NULL,
@@ -50,10 +97,16 @@ export async function initializeDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_flwnty_users_provider_id ON flwnty_users(provider_id);
       CREATE INDEX IF NOT EXISTS idx_flwnty_users_provider ON flwnty_users(provider);
       CREATE INDEX IF NOT EXISTS idx_flwnty_users_email ON flwnty_users(email);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_project_created_by ON flwnty_project(created_by);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_project_deleted_at ON flwnty_project(deleted_at);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_group_project_id ON flwnty_task_group(project_id);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_group_created_by ON flwnty_task_group(created_by);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_group_deleted_at ON flwnty_task_group(deleted_at);
       CREATE INDEX IF NOT EXISTS idx_flwnty_task_assignee ON flwnty_task(assignee);
       CREATE INDEX IF NOT EXISTS idx_flwnty_task_approver ON flwnty_task(approver);
       CREATE INDEX IF NOT EXISTS idx_flwnty_task_task_group_id ON flwnty_task(task_group_id);
       CREATE INDEX IF NOT EXISTS idx_flwnty_task_project_id ON flwnty_task(project_id);
+      CREATE INDEX IF NOT EXISTS idx_flwnty_task_status_id ON flwnty_task(status_id);
       CREATE INDEX IF NOT EXISTS idx_flwnty_task_deleted_at ON flwnty_task(deleted_at);
     `;
 
@@ -90,6 +143,18 @@ export async function createUpdateTimestampTrigger(): Promise<void> {
       DROP TRIGGER IF EXISTS update_flwnty_users_updated_at ON flwnty_users;
       CREATE TRIGGER update_flwnty_users_updated_at
         BEFORE UPDATE ON flwnty_users
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+      
+      DROP TRIGGER IF EXISTS update_flwnty_project_updated_at ON flwnty_project;
+      CREATE TRIGGER update_flwnty_project_updated_at
+        BEFORE UPDATE ON flwnty_project
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+      
+      DROP TRIGGER IF EXISTS update_flwnty_task_group_updated_at ON flwnty_task_group;
+      CREATE TRIGGER update_flwnty_task_group_updated_at
+        BEFORE UPDATE ON flwnty_task_group
         FOR EACH ROW
         EXECUTE FUNCTION update_updated_at_column();
       

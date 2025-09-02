@@ -253,6 +253,50 @@
 						},
 						"description": "Restore a soft deleted project"
 					}
+				},
+				{
+					"name": "Get Project Flow",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects/project-flow/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects", "project-flow", "1"]
+						},
+						"description": "Get project flow data with users and their tasks grouped by task groups. Only accessible to project members."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/projects/project-flow/1",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "projects", "project-flow", "1"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"project_id\": 1,\n    \"project_title\": \"Website Redesign\",\n    \"users\": [\n      {\n        \"id\": \"1\",\n        \"task_owner\": \"Paul\",\n        \"approvers\": [\"4\", \"4\"],\n        \"taskGroups\": [\n          {\n            \"group_name\": \"Frontend\",\n            \"tasks\": [\n              {\n                \"id\": \"1\",\n                \"task_title\": \"Paul Task 1\",\n                \"status\": \"completed\"\n              },\n              {\n                \"id\": \"2\",\n                \"task_title\": \"Paul Task 2\",\n                \"status\": \"in-progress\"\n              }\n            ]\n          },\n          {\n            \"group_name\": \"Backend\",\n            \"tasks\": [\n              {\n                \"id\": \"3\",\n                \"task_title\": \"Paul Task 3\",\n                \"status\": \"pending\"\n              },\n              {\n                \"id\": \"4\",\n                \"task_title\": \"Paul Task 4\",\n                \"status\": \"completed\"\n              }\n            ]\n          }\n        ]\n      },\n      {\n        \"id\": \"2\",\n        \"task_owner\": \"Nicho\",\n        \"approvers\": [\"3\", \"5\"],\n        \"taskGroups\": [\n          {\n            \"group_name\": \"API\",\n            \"tasks\": [\n              {\n                \"id\": \"5\",\n                \"task_title\": \"Nicho Task 1\",\n                \"status\": \"completed\"\n              },\n              {\n                \"id\": \"6\",\n                \"task_title\": \"Nicho Task 2\",\n                \"status\": \"completed\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}"
+						}
+					]
 				}
 			]
 		},

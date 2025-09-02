@@ -2,7 +2,7 @@
 
 ## Overview
 
-Flownity Backend is a JWT-based OAuth authentication API that supports GitHub and Google OAuth 2.0 providers. After successful OAuth authentication, the API returns JWT tokens for stateless authentication.
+Flownity Backend is a JWT-based OAuth authentication API that supports GitHub and Google OAuth 2.0 providers. After successful OAuth authentication, the API returns JWT tokens for stateless authentication. The API also provides project management features with task tracking and user collaboration.
 
 ## Base URL
 
@@ -169,6 +169,111 @@ Authorization: Bearer <jwt-token>
     },
     "authMethod": "jwt"
   }
+}
+```
+
+### Project Management Endpoints
+
+#### Get Project Flow
+```http
+GET /api/v1/projects/project-flow/:project_id
+Authorization: Bearer <jwt-token>
+```
+
+Returns consolidated project data with users and their tasks grouped by task groups. Only accessible to project members (project owner or users assigned to tasks).
+
+**Parameters:**
+- `project_id` (path parameter): The ID of the project
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": 1,
+    "project_title": "Website Redesign",
+    "users": [
+      {
+        "id": "1",
+        "task_owner": "Paul",
+        "approvers": ["4", "4"],
+        "taskGroups": [
+          {
+            "group_name": "Frontend",
+            "tasks": [
+              {
+                "id": "1",
+                "task_title": "Paul Task 1",
+                "status": "completed"
+              },
+              {
+                "id": "2",
+                "task_title": "Paul Task 2",
+                "status": "in-progress"
+              }
+            ]
+          },
+          {
+            "group_name": "Backend",
+            "tasks": [
+              {
+                "id": "3",
+                "task_title": "Paul Task 3",
+                "status": "pending"
+              },
+              {
+                "id": "4",
+                "task_title": "Paul Task 4",
+                "status": "completed"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "2",
+        "task_owner": "Nicho",
+        "approvers": ["3", "5"],
+        "taskGroups": [
+          {
+            "group_name": "API",
+            "tasks": [
+              {
+                "id": "5",
+                "task_title": "Nicho Task 1",
+                "status": "completed"
+              },
+              {
+                "id": "6",
+                "task_title": "Nicho Task 2",
+                "status": "completed"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Error Responses:**
+
+Project not found:
+```json
+{
+  "success": false,
+  "error": "Project not found",
+  "message": "Project with the specified ID does not exist"
+}
+```
+
+Access denied:
+```json
+{
+  "success": false,
+  "error": "Access denied",
+  "message": "You do not have permission to view this project flow"
 }
 ```
 

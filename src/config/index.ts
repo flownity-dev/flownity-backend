@@ -7,6 +7,33 @@ if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
 }
 
+// Security: Validate that we're not using default/example values in production
+if (process.env.NODE_ENV === 'production') {
+  const dangerousDefaults = [
+    'your-secure-jwt-secret-min-32-chars',
+    'your-github-client-id',
+    'your-google-client-id',
+    'localhost',
+    'dev_user'
+  ];
+  
+  const envValues = [
+    process.env.JWT_SECRET,
+    process.env.GITHUB_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.DATABASE_HOST,
+    process.env.DATABASE_USER
+  ].filter(Boolean);
+  
+  const hasDefaults = envValues.some(value => 
+    dangerousDefaults.some(defaultVal => value?.includes(defaultVal))
+  );
+  
+  if (hasDefaults) {
+    throw new Error('Production environment detected with default/example values. Please use secure production credentials.');
+  }
+}
+
 export interface AppConfig {
   PORT: number;
   NODE_ENV: string;

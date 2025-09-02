@@ -7,6 +7,31 @@ import { Status } from '../../models/Status.js';
 import { ValidationError } from '../../errors/index.js';
 import { PaginationUtils } from '../../utils/index.js';
 import DatabaseConnection from '../../database/connection.js';
+import { TaskGroup } from '../../models/TaskGroup.js';
+import { logger } from '../../utils/index.js';
+import { DatabaseError } from '../../errors/index.js';
+
+
+interface ApiTask {
+    id: string;
+    task_title: string;
+    status: string | null;
+    approver_id: number | null;
+    task_group_id: number | null;
+}
+
+interface ApiTaskGroup {
+    id: string;
+    group_name: string;
+    tasks: ApiTask[];
+}
+
+interface ApiUserTasks {
+    id: string;
+    task_owner: string;
+    taskGroups: ApiTaskGroup[];
+    ungroupedTasks: ApiTask[];
+}
 
 export class ProjectController {
     /**
@@ -482,146 +507,135 @@ export class ProjectController {
         }
     };
 
-    /**
-     * Get project flow data - users with their tasks grouped by task groups for a specific project
-     */
-    static getProjectFlow = async (req: Request, res: Response) => {
-        const jwtUser = getJWTUser(req);
 
-        if (!jwtUser) {
-            return res.status(401).json({
+
+static getProjectFlow = async (req: Request, res: Response) => {
+    const jwtUser = getJWTUser(req);
+    const projectId = parseInt(req.params.project_id!);
+
+    if (!jwtUser) {
+        return res.status(401).json({
+            success: false,
+            error: 'User not authenticated',
+            message: 'Valid JWT token required'
+        });
+    }
+
+    if (!projectId || isNaN(projectId)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid project ID',
+            message: 'Project ID must be a valid number'
+        });
+    }
+
+    try {
+        const project = await Project.findById(projectId);
+        if (!project) {
+            return res.status(404).json({
                 success: false,
-                error: 'User not authenticated',
-                message: 'Valid JWT token required'
+                error: 'Project not found',
+                message: 'Project with the specified ID does not exist'
             });
         }
 
-        try {
-            const projectId = parseInt(req.params.project_id!);
-
-            if (isNaN(projectId)) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Invalid project ID',
-                    message: 'Project ID must be a valid number'
-                });
-            }
-
-            // Check if project exists and user has access
-            const project = await Project.findById(projectId);
-            if (!project) {
-                return res.status(404).json({
-                    success: false,
-                    error: 'Project not found',
-                    message: 'Project with the specified ID does not exist'
-                });
-            }
-
-            // Get all tasks for this project with user details, task groups, and status
-            const query = `
-                SELECT 
-                    t.id as task_id,
-                    t.task_title,
-                    t.assignee,
-                    t.task_group_id,
-                    tg.task_group_title,
-                    u_assignee.id as assignee_user_id,
-                    u_assignee.username as assignee_username,
-                    u_assignee.first_name as assignee_first_name,
-                    u_assignee.last_name as assignee_last_name,
-                    s.status_name,
-                    -- Get all approvers for this user's tasks in this project
-                    ARRAY_AGG(DISTINCT u_approver.id::text) FILTER (WHERE u_approver.id IS NOT NULL) as approver_ids
-                FROM flwnty_task t
-                LEFT JOIN flwnty_task_group tg ON t.task_group_id = tg.id
-                LEFT JOIN flwnty_users u_assignee ON t.assignee = u_assignee.id
-                LEFT JOIN flwnty_task t_all ON t_all.assignee = t.assignee AND t_all.project_id = t.project_id AND t_all.deleted_at IS NULL
-                LEFT JOIN flwnty_users u_approver ON t_all.approver = u_approver.id
-                LEFT JOIN flwnty_status s ON t.status_id = s.id
-                WHERE t.project_id = $1 AND t.deleted_at IS NULL
-                GROUP BY t.id, t.task_title, t.assignee, t.task_group_id, tg.task_group_title,
-                         u_assignee.id, u_assignee.username, u_assignee.first_name, u_assignee.last_name, s.status_name
-                ORDER BY t.assignee, tg.task_group_title, t.created_at ASC
-            `;
-
-            const result = await DatabaseConnection.query(query, [projectId]);
-            const taskRows = result.rows;
-
-            // Check if user has access to this project (either project owner or involved in tasks)
-            const hasAccess = project.createdBy === jwtUser.userId ||
-                taskRows.some(row =>
-                    row.assignee_user_id === jwtUser.userId ||
-                    (row.approver_ids && row.approver_ids.includes(jwtUser.userId.toString()))
-                );
-
-            if (!hasAccess) {
-                return res.status(403).json({
-                    success: false,
-                    error: 'Access denied',
-                    message: 'You do not have permission to view this project flow'
-                });
-            }
-
-            // Group tasks by assignee (task owner) and then by task group
-            const userTaskMap = new Map();
-
-            for (const row of taskRows) {
-                if (!row.assignee_user_id) continue; // Skip tasks without assignee
-
-                const userId = row.assignee_user_id.toString();
-                const taskOwnerName = row.assignee_first_name && row.assignee_last_name
-                    ? `${row.assignee_first_name} ${row.assignee_last_name}`
-                    : row.assignee_username;
-
-                if (!userTaskMap.has(userId)) {
-                    userTaskMap.set(userId, {
-                        id: userId,
-                        task_owner: taskOwnerName,
-                        approvers: row.approver_ids || [],
-                        taskGroups: new Map()
-                    });
-                }
-
-                const user = userTaskMap.get(userId);
-                const groupName = row.task_group_title || 'Ungrouped';
-
-                if (!user.taskGroups.has(groupName)) {
-                    user.taskGroups.set(groupName, {
-                        group_name: groupName,
-                        tasks: []
-                    });
-                }
-
-                user.taskGroups.get(groupName).tasks.push({
-                    id: row.task_id.toString(),
-                    task_title: row.task_title,
-                    status: row.status_name || 'pending'
-                });
-            }
-
-            // Convert maps to arrays
-            const users = Array.from(userTaskMap.values()).map(user => ({
-                id: user.id,
-                task_owner: user.task_owner,
-                approvers: user.approvers,
-                taskGroups: Array.from(user.taskGroups.values())
-            }));
-
-            return res.json({
-                success: true,
-                data: {
-                    project_id: projectId,
-                    project_title: project.projectTitle,
-                    users
-                }
-            });
-
-        } catch (err) {
-            return res.status(500).json({
+        if (project.createdBy !== jwtUser.userId) {
+            return res.status(403).json({
                 success: false,
-                error: 'Database error',
-                message: err instanceof Error ? err.message : String(err)
+                error: 'Access denied',
+                message: 'You can only access your own projects'
             });
         }
-    };
+
+        // Get tasks
+        const { rows } = await DatabaseConnection.query(
+            'SELECT * FROM flwnty_task WHERE project_id = $1 AND deleted_at IS NULL',
+            [projectId]
+        );
+
+        // Preload users
+        const userIds = Array.from(
+            new Set(
+                rows.map(t => t.assignee).filter((id): id is number => id != null)
+            )
+        );
+
+        const users = await Promise.all(userIds.map(id => User.findById(Number(id))));
+        const userMap = new Map(users.filter((u): u is User => !!u).map(u => [u.id, u]));
+
+        // Preload task groups
+        const taskGroupIds = Array.from(
+            new Set(rows.map(t => t.task_group_id).filter((id): id is number => id != null))
+        );
+        const taskGroups = await Promise.all(taskGroupIds.map(id => TaskGroup.findById(id)));
+        const taskGroupMap = new Map(taskGroups.filter((g): g is TaskGroup => !!g).map(g => [g.id, g]));
+
+        // Preload statuses
+        const statuses = await Status.findAll();
+        const statusMap = new Map(statuses.map(s => [s.id, s.statusName]));
+
+        // Group tasks by user
+        const usersWithTasks: ApiUserTasks[] = userIds
+            .map(userId => userMap.get(Number(userId)))
+            .filter((user): user is User => !!user)
+            .map(user => {
+                const userTasks = rows.filter(t => Number(t.assignee) === user.id);
+
+
+                const groupedTasks: Record<number, ApiTask[]> = {};
+                const ungroupedTasks: ApiTask[] = [];
+
+                userTasks.forEach(task => {
+                    const groupId = task.task_group_id != null ? Number(task.task_group_id) : null;
+                    const apiTask: ApiTask = {
+                        id: String(task.id),
+                        task_title: task.task_title,
+                        status: task.status_id ? statusMap.get(task.status_id) ?? null : null,
+                        approver_id: task.approver,
+                        task_group_id: groupId ?? null
+                    };
+
+                    if (groupId != null) { // include 0
+                        if (!groupedTasks[groupId]) groupedTasks[groupId] = [];
+                        groupedTasks[groupId].push(apiTask);
+                    } else {
+                        ungroupedTasks.push(apiTask);
+                    }
+                });
+
+                return {
+                    id: String(user.id),
+                    task_owner: user.displayName,
+                    taskGroups: Object.entries(groupedTasks).map(([groupId, tasks]) => {
+                        const group = taskGroupMap.get(Number(groupId));
+                        return {
+                            id: String(group?.id ?? groupId),
+                            group_name: group?.taskGroupTitle ?? "Unknown",
+                            tasks
+                        };
+                    }),
+                    ungroupedTasks
+                };
+            });
+
+        return res.json({
+            success: true,
+            data: usersWithTasks
+        });
+
+    } catch (err: unknown) {
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: err instanceof Error ? err.message : String(err)
+        });
+    }
+};
+
+
+
+
+
+
+
 }

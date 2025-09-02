@@ -50,6 +50,68 @@ export class User {
      * @param provider - The provider (default: 'github')
      * @returns User instance or null if not found
      */
+
+    /**
+     * Find a user by their numeric ID
+     * @param id - The user ID to search for
+     * @returns User instance or null if not found
+     */
+    static async findById(id: number): Promise<User | null> {
+        if (!id || typeof id !== 'number' || isNaN(id)) {
+            throw new ValidationError('User ID is required and must be a valid number');
+        }
+
+        try {
+            logger.database('Finding user by ID', {
+                operation: 'findById',
+                table: 'flwnty_users',
+                userId: id
+            });
+
+            const query = 'SELECT * FROM flwnty_users WHERE id = $1';
+            const result = await DatabaseConnection.query<UserRow>(query, [id]);
+
+            const userRow = result.rows[0];
+            if (!userRow) {
+                logger.database('User not found by ID', {
+                    operation: 'findById',
+                    table: 'flwnty_users',
+                    userId: id,
+                    found: false
+                });
+                return null;
+            }
+
+            logger.database('User found by ID', {
+                operation: 'findById',
+                table: 'flwnty_users',
+                userId: id,
+                found: true,
+                username: userRow.username
+            });
+
+            return new User(userRow);
+        } catch (error) {
+            if (error instanceof DatabaseError) {
+                throw error;
+            }
+
+            logger.database('Error finding user by ID', {
+                operation: 'findById',
+                table: 'flwnty_users',
+                userId: id,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to find user by ID',
+                500,
+                'USER_FIND_BY_ID_ERROR'
+            );
+        }
+    }
+
+
     static async findByProviderId(providerId: string, provider: Provider = 'github'): Promise<User | null> {
         if (!providerId || typeof providerId !== 'string' || providerId.trim() === '') {
             throw new ValidationError('Provider ID is required and must be a non-empty string');
@@ -98,7 +160,7 @@ export class User {
             if (error instanceof DatabaseError) {
                 throw error;
             }
-            
+
             logger.database('Error finding user by provider ID', {
                 operation: 'findByProviderId',
                 table: 'flwnty_users',
@@ -106,7 +168,7 @@ export class User {
                 provider: provider.trim(),
                 error: error instanceof Error ? error.message : String(error)
             });
-            
+
             throw new DatabaseError(
                 'Failed to find user by provider ID',
                 500,
@@ -150,10 +212,10 @@ export class User {
         }
 
         // For GitHub profiles, username is required. For Google profiles, we'll use email or generate one
-        const username = 'username' in profile 
-            ? profile.username 
+        const username = 'username' in profile
+            ? profile.username
             : profile.emails?.[0]?.value?.split('@')[0] || `user_${profile.id}`;
-            
+
         if (!username || typeof username !== 'string' || username.trim() === '') {
             throw new ValidationError('Profile must have a valid username or email');
         }
@@ -185,12 +247,12 @@ export class User {
             }
 
             // Extract email from emails array
-            const email = profile.emails && profile.emails.length > 0 
+            const email = profile.emails && profile.emails.length > 0
                 ? (profile.emails.find(e => e.verified)?.value || profile.emails[0]?.value || null)
                 : null;
 
             // Extract profile picture URL
-            const profilePictureUrl = profile.photos && profile.photos.length > 0 
+            const profilePictureUrl = profile.photos && profile.photos.length > 0
                 ? (profile.photos[0]?.value || null)
                 : null;
 

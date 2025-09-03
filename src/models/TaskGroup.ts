@@ -98,6 +98,7 @@ export class TaskGroup {
      * Find a task group by ID
      */
     static async findById(id: number): Promise<TaskGroup | null> {
+        console.log('test taskgroup:',id)
         if (!id || typeof id !== 'number') {
             throw new ValidationError('Task Group ID is required and must be a number');
         }

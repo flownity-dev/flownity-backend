@@ -5,8 +5,16 @@ import { configurePassport, passport } from './auth/index.js';
 import { errorHandler, notFoundHandler } from './errors/index.js';
 import { logger, LogCategory } from './utils/index.js';
 import routes from './routes/index.js';
-
+import cors from "cors";
 const app = express();
+
+
+
+
+app.use(cors({
+  origin: "http://localhost:5173", // your frontend
+  credentials: false,               // if you send cookies or auth headers
+}));
 
 // Basic middleware
 app.use(express.json());

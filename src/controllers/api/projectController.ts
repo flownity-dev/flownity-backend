@@ -26,11 +26,26 @@ interface ApiTaskGroup {
     tasks: ApiTask[];
 }
 
+
 interface ApiUserTasks {
     id: string;
     task_owner: string;
-    taskGroups: ApiTaskGroup[];
+    taskGroups: {
+        id: string;
+        group_name: string;
+        tasks: ApiTask[];
+    }[];
     ungroupedTasks: ApiTask[];
+    
+    // <-- Add this
+    approverTasks: {
+        taskGroups: {
+            id: string;
+            group_name: string;
+            tasks: ApiTask[];
+        }[];
+        ungroupedTasks: ApiTask[];
+    };
 }
 
 export class ProjectController {
@@ -507,130 +522,198 @@ export class ProjectController {
         }
     };
 
-
-
-static getProjectFlow = async (req: Request, res: Response) => {
-    const jwtUser = getJWTUser(req);
-    const projectId = parseInt(req.params.project_id!);
-
-    if (!jwtUser) {
-        return res.status(401).json({
-            success: false,
-            error: 'User not authenticated',
-            message: 'Valid JWT token required'
-        });
-    }
-
-    if (!projectId || isNaN(projectId)) {
-        return res.status(400).json({
-            success: false,
-            error: 'Invalid project ID',
-            message: 'Project ID must be a valid number'
-        });
-    }
-
-    try {
-        const project = await Project.findById(projectId);
-        if (!project) {
-            return res.status(404).json({
+    static getProjectFlow = async (req: Request, res: Response) => {
+        const jwtUser = getJWTUser(req);
+        const projectId = parseInt(req.params.project_id!);
+    
+        if (!jwtUser) {
+            return res.status(401).json({
                 success: false,
-                error: 'Project not found',
-                message: 'Project with the specified ID does not exist'
+                error: 'User not authenticated',
+                message: 'Valid JWT token required'
             });
         }
-
-        if (project.createdBy !== jwtUser.userId) {
-            return res.status(403).json({
+    
+        if (!projectId || isNaN(projectId)) {
+            return res.status(400).json({
                 success: false,
-                error: 'Access denied',
-                message: 'You can only access your own projects'
+                error: 'Invalid project ID',
+                message: 'Project ID must be a valid number'
             });
         }
-
-        // Get tasks
-        const { rows } = await DatabaseConnection.query(
-            'SELECT * FROM flwnty_task WHERE project_id = $1 AND deleted_at IS NULL',
-            [projectId]
-        );
-
-        // Preload users
-        const userIds = Array.from(
-            new Set(
-                rows.map(t => t.assignee).filter((id): id is number => id != null)
-            )
-        );
-
-        const users = await Promise.all(userIds.map(id => User.findById(Number(id))));
-        const userMap = new Map(users.filter((u): u is User => !!u).map(u => [u.id, u]));
-
-        // Preload task groups
-        const taskGroupIds = Array.from(
-            new Set(rows.map(t => t.task_group_id).filter((id): id is number => id != null))
-        );
-        const taskGroups = await Promise.all(taskGroupIds.map(id => TaskGroup.findById(id)));
-        const taskGroupMap = new Map(taskGroups.filter((g): g is TaskGroup => !!g).map(g => [g.id, g]));
-
-        // Preload statuses
-        const statuses = await Status.findAll();
-        const statusMap = new Map(statuses.map(s => [s.id, s.statusName]));
-
-        // Group tasks by user
-        const usersWithTasks: ApiUserTasks[] = userIds
-            .map(userId => userMap.get(Number(userId)))
-            .filter((user): user is User => !!user)
-            .map(user => {
-                const userTasks = rows.filter(t => Number(t.assignee) === user.id);
-
-
+    
+        try {
+            const project = await Project.findById(projectId);
+            if (!project) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Project not found',
+                    message: 'Project with the specified ID does not exist'
+                });
+            }
+    
+            if (project.createdBy !== jwtUser.userId) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Access denied',
+                    message: 'You can only access your own projects'
+                });
+            }
+    
+            // Fetch all tasks for this project
+            const { rows } = await DatabaseConnection.query(
+                'SELECT * FROM flwnty_task WHERE project_id = $1 AND deleted_at IS NULL',
+                [projectId]
+            );
+    
+            // Normalize task IDs
+            const normalizedRows = rows.map(r => ({
+                ...r,
+                assignee: Number(r.assignee),
+                approver: Number(r.approver),
+                task_group_id: r.task_group_id != null ? Number(r.task_group_id) : null,
+                status_id: r.status_id != null ? Number(r.status_id) : null
+            }));
+    
+            // Collect all unique assignee and approver IDs
+            const assigneeIds = Array.from(new Set(normalizedRows.map(t => t.assignee).filter(id => id != null)));
+            const approverIds = Array.from(new Set(normalizedRows.map(t => t.approver).filter(id => id != null)));
+    
+            // Load all users at once (assignees + approvers)
+            const allUserIds = Array.from(new Set([...assigneeIds, ...approverIds]));
+            const allUsers = await Promise.all(allUserIds.map(id => User.findById(id)));
+            const userMap = new Map(allUsers.filter((u): u is User => !!u).map(u => [u.id, u]));
+    
+            // Load task groups
+            const taskGroupIds = Array.from(new Set(normalizedRows.map(t => t.task_group_id).filter(id => id != null)));
+            const taskGroups = await Promise.all(taskGroupIds.map(id => TaskGroup.findById(id)));
+            const taskGroupMap = new Map(taskGroups.filter((g): g is TaskGroup => !!g).map(g => [g.id, g]));
+    
+            // Load statuses
+            const statuses = await Status.findAll();
+            const statusMap = new Map(statuses.map(s => [Number(s.id), s.statusName]));
+    
+            // Build base user task structure for assignees
+            const usersWithTasks: ApiUserTasks[] = assigneeIds
+                .map(userId => userMap.get(userId))
+                .filter((user): user is User => !!user)
+                .map(user => {
+                    const userTasks = normalizedRows.filter(t => t.assignee === user.id);
+                    const groupedTasks: Record<number, ApiTask[]> = {};
+                    const ungroupedTasks: ApiTask[] = [];
+    
+                    userTasks.forEach(task => {
+                        const groupId = task.task_group_id;
+                        const apiTask: ApiTask = {
+                            id: String(task.id),
+                            task_title: task.task_title,
+                            status: task.status_id ? statusMap.get(task.status_id) ?? null : null,
+                            approver_id: task.approver,
+                            task_group_id: groupId
+                        };
+    
+                        if (groupId != null) {
+                            if (!groupedTasks[groupId]) groupedTasks[groupId] = [];
+                            groupedTasks[groupId].push(apiTask);
+                        } else {
+                            ungroupedTasks.push(apiTask);
+                        }
+                    });
+    
+                    return {
+                        id: String(user.id),
+                        task_owner: user.displayName,
+                        taskGroups: Object.entries(groupedTasks).map(([groupId, tasks]) => {
+                            const group = taskGroupMap.get(Number(groupId));
+                            return {
+                                id: String(group?.id ?? groupId),
+                                group_name: group?.taskGroupTitle ?? "Unknown",
+                                tasks
+                            };
+                        }),
+                        ungroupedTasks,
+                        approverTasks: { taskGroups: [], ungroupedTasks: [] }
+                    };
+                });
+    
+            const usersWithTasksMap = new Map(usersWithTasks.map(u => [u.id, u]));
+    
+            // Process approver tasks
+            for (const approverId of approverIds) {
+                const approverUser = userMap.get(approverId);
+                if (!approverUser) continue;
+    
+                const approverTasksRows = normalizedRows.filter(t => t.approver === approverId);
                 const groupedTasks: Record<number, ApiTask[]> = {};
                 const ungroupedTasks: ApiTask[] = [];
-
-                userTasks.forEach(task => {
-                    const groupId = task.task_group_id != null ? Number(task.task_group_id) : null;
+    
+                approverTasksRows.forEach(task => {
+                    const groupId = task.task_group_id;
                     const apiTask: ApiTask = {
                         id: String(task.id),
                         task_title: task.task_title,
                         status: task.status_id ? statusMap.get(task.status_id) ?? null : null,
                         approver_id: task.approver,
-                        task_group_id: groupId ?? null
+                        task_group_id: groupId
                     };
-
-                    if (groupId != null) { // include 0
+    
+                    if (groupId != null) {
                         if (!groupedTasks[groupId]) groupedTasks[groupId] = [];
                         groupedTasks[groupId].push(apiTask);
                     } else {
                         ungroupedTasks.push(apiTask);
                     }
                 });
-
-                return {
-                    id: String(user.id),
-                    task_owner: user.displayName,
-                    taskGroups: Object.entries(groupedTasks).map(([groupId, tasks]) => {
-                        const group = taskGroupMap.get(Number(groupId));
-                        return {
-                            id: String(group?.id ?? groupId),
-                            group_name: group?.taskGroupTitle ?? "Unknown",
-                            tasks
-                        };
-                    }),
-                    ungroupedTasks
-                };
+    
+                const existingUserEntry = usersWithTasksMap.get(String(approverId));
+                if (existingUserEntry) {
+                    existingUserEntry.approverTasks = {
+                        taskGroups: Object.entries(groupedTasks).map(([groupId, tasks]) => {
+                            const group = taskGroupMap.get(Number(groupId));
+                            return {
+                                id: String(group?.id ?? groupId),
+                                group_name: group?.taskGroupTitle ?? "Unknown",
+                                tasks
+                            };
+                        }),
+                        ungroupedTasks
+                    };
+                } else if (approverTasksRows.length > 0) {
+                    usersWithTasks.push({
+                        id: String(approverUser.id),
+                        task_owner: `${approverUser.username} (For Approval)`,
+                        taskGroups: [],
+                        ungroupedTasks: [],
+                        approverTasks: {
+                            taskGroups: Object.entries(groupedTasks).map(([groupId, tasks]) => {
+                                const group = taskGroupMap.get(Number(groupId));
+                                return {
+                                    id: String(group?.id ?? groupId),
+                                    group_name: group?.taskGroupTitle ?? "Unknown",
+                                    tasks
+                                };
+                            }),
+                            ungroupedTasks
+                        }
+                    });
+                }
+            }
+    
+            return res.json({
+                success: true,
+                data: usersWithTasks
             });
-
-        return res.json({
-            success: true,
-            data: usersWithTasks
-        });
-
-    } catch (err: unknown) {
-        return res.status(500).json({
-            success: false,
-            error: 'Internal server error',
-            message: err instanceof Error ? err.message : String(err)
-        });
-    }
-};
+    
+        } catch (err: unknown) {
+            return res.status(500).json({
+                success: false,
+                error: 'Internal server error',
+                message: err instanceof Error ? err.message : String(err)
+            });
+        }
+    };
+    
+    
 
 
 

@@ -56,8 +56,9 @@ export class User {
      * @param id - The user ID to search for
      * @returns User instance or null if not found
      */
-    static async findById(id: number): Promise<User | null> {
-        if (!id || typeof id !== 'number' || isNaN(id)) {
+    static async findById(id: number | string): Promise<User | null> {
+        const numericId = Number(id);
+        if (!numericId || isNaN(numericId)) {
             throw new ValidationError('User ID is required and must be a valid number');
         }
 

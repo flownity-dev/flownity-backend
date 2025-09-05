@@ -1,0 +1,874 @@
+{
+	"info": {
+		"_postman_id": "flownity-backend-api",
+		"name": "Flownity Backend API",
+		"description": "Complete API collection for Flownity Backend with OAuth authentication, JWT tokens, and CRUD operations for Projects, Task Groups, Tasks, and Statuses.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "GitHub OAuth Login",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/github",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "github"]
+						},
+						"description": "Initiate GitHub OAuth login flow"
+					}
+				},
+				{
+					"name": "Google OAuth Login",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/google",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "google"]
+						},
+						"description": "Initiate Google OAuth login flow"
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "logout"]
+						},
+						"description": "Logout and invalidate session"
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "refresh"]
+						},
+						"description": "Refresh JWT token"
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "me"]
+						},
+						"description": "Get authenticated user profile"
+					}
+				},
+				{
+					"name": "Get User Profile (Token Only)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/me/token",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "me", "token"]
+						},
+						"description": "Get user profile using JWT token only"
+					}
+				},
+				{
+					"name": "Get GitHub User Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/me/github",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "me", "github"]
+						},
+						"description": "Get user profile for GitHub users only"
+					}
+				},
+				{
+					"name": "Get Google User Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/me/google",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "me", "google"]
+						},
+						"description": "Get user profile for Google users only"
+					}
+				}
+			]
+		},
+		{
+			"name": "Projects",
+			"item": [
+				{
+					"name": "Get All Projects",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects"]
+						},
+						"description": "Get all projects for authenticated user"
+					}
+				},
+				{
+					"name": "Get Project by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects", "1"]
+						},
+						"description": "Get a specific project by ID"
+					}
+				},
+				{
+					"name": "Get Deleted Projects",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects/trash",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects", "trash"]
+						},
+						"description": "Get all soft deleted projects"
+					}
+				},
+				{
+					"name": "Create Project",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"project_title\": \"New Project\",\n  \"project_description\": \"Project description\",\n  \"status_id\": 1,\n  \"due_from\": \"2025-01-01T00:00:00Z\",\n  \"due_to\": \"2025-12-31T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects"]
+						},
+						"description": "Create a new project"
+					}
+				},
+				{
+					"name": "Update Project",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"project_title\": \"Updated Project Name\",\n  \"project_description\": \"Updated description\",\n  \"status_id\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects", "1"]
+						},
+						"description": "Update an existing project"
+					}
+				},
+				{
+					"name": "Delete Project (Soft)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects", "1"]
+						},
+						"description": "Soft delete a project"
+					}
+				},
+				{
+					"name": "Restore Project",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects/1/restore",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects", "1", "restore"]
+						},
+						"description": "Restore a soft deleted project"
+					}
+				},
+				{
+					"name": "Get Project Flow",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/projects/project-flow/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "projects", "project-flow", "1"]
+						},
+						"description": "Get project flow data with users and their tasks grouped by task groups. Only accessible to project members."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/projects/project-flow/1",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "projects", "project-flow", "1"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"project_id\": 1,\n    \"project_title\": \"Website Redesign\",\n    \"users\": [\n      {\n        \"id\": \"1\",\n        \"task_owner\": \"Paul\",\n        \"approvers\": [\"4\", \"4\"],\n        \"taskGroups\": [\n          {\n            \"group_name\": \"Frontend\",\n            \"tasks\": [\n              {\n                \"id\": \"1\",\n                \"task_title\": \"Paul Task 1\",\n                \"status\": \"completed\"\n              },\n              {\n                \"id\": \"2\",\n                \"task_title\": \"Paul Task 2\",\n                \"status\": \"in-progress\"\n              }\n            ]\n          },\n          {\n            \"group_name\": \"Backend\",\n            \"tasks\": [\n              {\n                \"id\": \"3\",\n                \"task_title\": \"Paul Task 3\",\n                \"status\": \"pending\"\n              },\n              {\n                \"id\": \"4\",\n                \"task_title\": \"Paul Task 4\",\n                \"status\": \"completed\"\n              }\n            ]\n          }\n        ]\n      },\n      {\n        \"id\": \"2\",\n        \"task_owner\": \"Nicho\",\n        \"approvers\": [\"3\", \"5\"],\n        \"taskGroups\": [\n          {\n            \"group_name\": \"API\",\n            \"tasks\": [\n              {\n                \"id\": \"5\",\n                \"task_title\": \"Nicho Task 1\",\n                \"status\": \"completed\"\n              },\n              {\n                \"id\": \"6\",\n                \"task_title\": \"Nicho Task 2\",\n                \"status\": \"completed\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Task Groups",
+			"item": [
+				{
+					"name": "Get All Task Groups",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/task-groups",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "task-groups"]
+						},
+						"description": "Get all task groups for authenticated user"
+					}
+				},
+				{
+					"name": "Get Task Group by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/task-groups/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "task-groups", "1"]
+						},
+						"description": "Get a specific task group by ID"
+					}
+				},
+				{
+					"name": "Get Deleted Task Groups",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/task-groups/trash",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "task-groups", "trash"]
+						},
+						"description": "Get all soft deleted task groups"
+					}
+				},
+				{
+					"name": "Create Task Group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"task_group_title\": \"New Task Group\",\n  \"project_id\": 1,\n  \"status_id\": 1,\n  \"due_from\": \"2025-01-01T00:00:00Z\",\n  \"due_to\": \"2025-01-31T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/task-groups",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "task-groups"]
+						},
+						"description": "Create a new task group"
+					}
+				},
+				{
+					"name": "Update Task Group",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"task_group_title\": \"Updated Task Group\",\n  \"status_id\": 2,\n  \"due_to\": \"2025-02-28T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/task-groups/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "task-groups", "1"]
+						},
+						"description": "Update an existing task group"
+					}
+				},
+				{
+					"name": "Delete Task Group (Soft)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/task-groups/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "task-groups", "1"]
+						},
+						"description": "Soft delete a task group"
+					}
+				},
+				{
+					"name": "Restore Task Group",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/task-groups/1/restore",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "task-groups", "1", "restore"]
+						},
+						"description": "Restore a soft deleted task group"
+					}
+				},
+				{
+					"name": "Force Delete Task Group",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/task-groups/1/force",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "task-groups", "1", "force"]
+						},
+						"description": "Permanently delete a task group"
+					}
+				}
+			]
+		},
+		{
+			"name": "Tasks",
+			"item": [
+				{
+					"name": "Get All Tasks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tasks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tasks"]
+						},
+						"description": "Get all tasks for authenticated user (where user is assignee or approver)"
+					}
+				},
+				{
+					"name": "Get Task by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tasks/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tasks", "1"]
+						},
+						"description": "Get a specific task by ID"
+					}
+				},
+				{
+					"name": "Get Deleted Tasks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tasks/trash",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tasks", "trash"]
+						},
+						"description": "Get all soft deleted tasks"
+					}
+				},
+				{
+					"name": "Create Task",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"task_title\": \"Complete API documentation\",\n  \"description\": \"Write comprehensive API documentation for all endpoints\",\n  \"task_group_id\": 1,\n  \"project_id\": 1,\n  \"status_id\": 1,\n  \"due_from\": \"2025-01-01T00:00:00Z\",\n  \"due_to\": \"2025-01-15T23:59:59Z\",\n  \"assignee\": 3,\n  \"approver\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tasks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tasks"]
+						},
+						"description": "Create a new task"
+					}
+				},
+				{
+					"name": "Update Task",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"task_title\": \"Updated task title\",\n  \"description\": \"Updated task description\",\n  \"status_id\": 2,\n  \"assignee\": 4,\n  \"due_to\": \"2025-01-20T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tasks/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tasks", "1"]
+						},
+						"description": "Update an existing task"
+					}
+				},
+				{
+					"name": "Delete Task (Soft)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tasks/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tasks", "1"]
+						},
+						"description": "Soft delete a task"
+					}
+				},
+				{
+					"name": "Restore Task",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tasks/1/restore",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tasks", "1", "restore"]
+						},
+						"description": "Restore a soft deleted task"
+					}
+				},
+				{
+					"name": "Force Delete Task",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tasks/1/force",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tasks", "1", "force"]
+						},
+						"description": "Permanently delete a task"
+					}
+				}
+			]
+		},
+		{
+			"name": "Statuses",
+			"item": [
+				{
+					"name": "Get All Statuses",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/statuses",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "statuses"]
+						},
+						"description": "Get all available statuses"
+					}
+				},
+				{
+					"name": "Get Status by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/statuses/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "statuses", "1"]
+						},
+						"description": "Get a specific status by ID"
+					}
+				},
+				{
+					"name": "Create Status",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status_name\": \"In Progress\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/statuses",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "statuses"]
+						},
+						"description": "Create a new status"
+					}
+				},
+				{
+					"name": "Update Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status_name\": \"Completed\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/statuses/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "statuses", "1"]
+						},
+						"description": "Update an existing status"
+					}
+				},
+				{
+					"name": "Delete Status",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/statuses/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "statuses", "1"]
+						},
+						"description": "Delete a status (only if not used by any tasks)"
+					}
+				}
+			]
+		},
+		{
+			"name": "Development & Testing",
+			"item": [
+				{
+					"name": "Token Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/token-info",
+							"host": ["{{base_url}}"],
+							"path": ["token-info"]
+						},
+						"description": "Get token information for debugging"
+					}
+				},
+				{
+					"name": "Test Database Error",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test-errors/database",
+							"host": ["{{base_url}}"],
+							"path": ["test-errors", "database"]
+						},
+						"description": "Test database error handling"
+					}
+				},
+				{
+					"name": "Test OAuth Error",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test-errors/oauth",
+							"host": ["{{base_url}}"],
+							"path": ["test-errors", "oauth"]
+						},
+						"description": "Test OAuth error handling"
+					}
+				},
+				{
+					"name": "Test JWT Error",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test-errors/jwt",
+							"host": ["{{base_url}}"],
+							"path": ["test-errors", "jwt"]
+						},
+						"description": "Test JWT error handling"
+					}
+				},
+				{
+					"name": "Test Generic Error",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test-errors/generic",
+							"host": ["{{base_url}}"],
+							"path": ["test-errors", "generic"]
+						},
+						"description": "Test generic error handling"
+					}
+				}
+			]
+		},
+		{
+			"name": "Token Examples",
+			"item": [
+				{
+					"name": "Protected Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/protected",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "protected"]
+						},
+						"description": "Protected endpoint requiring JWT token"
+					}
+				},
+				{
+					"name": "Optional Token Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/optional",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "optional"]
+						},
+						"description": "Endpoint with optional token verification"
+					}
+				},
+				{
+					"name": "GitHub Only Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/github-only",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "github-only"]
+						},
+						"description": "Endpoint requiring GitHub token only"
+					}
+				},
+				{
+					"name": "Google Only Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/google-only",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "google-only"]
+						},
+						"description": "Endpoint requiring Google token only"
+					}
+				},
+				{
+					"name": "Custom Config Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/custom-config",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "custom-config"]
+						},
+						"description": "Endpoint with custom token configuration"
+					}
+				},
+				{
+					"name": "Helper Functions Demo",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/helpers",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "helpers"]
+						},
+						"description": "Demonstration of helper functions"
+					}
+				},
+				{
+					"name": "GitHub Repos Example",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/github/repos",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "github", "repos"]
+						},
+						"description": "GitHub-specific endpoint with caching"
+					}
+				},
+				{
+					"name": "Google Profile Example",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/google/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "google", "profile"]
+						},
+						"description": "Google-specific endpoint with custom timeout"
+					}
+				},
+				{
+					"name": "Error Demo",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/examples/error-demo",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "examples", "error-demo"]
+						},
+						"description": "Token verification error handling examples"
+					}
+				}
+			]
+		},
+		{
+			"name": "Legacy Routes",
+			"item": [
+				{
+					"name": "Legacy Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/profile",
+							"host": ["{{base_url}}"],
+							"path": ["profile"]
+						},
+						"description": "Legacy profile route (now using JWT)"
+					}
+				}
+			]
+		},
+		{
+			"name": "Web Routes",
+			"item": [
+				{
+					"name": "Home Page",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": ["{{base_url}}"],
+							"path": [""]
+						},
+						"description": "Home page"
+					}
+				}
+			]
+		}
+	]
+}

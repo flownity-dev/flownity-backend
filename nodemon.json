@@ -1,0 +1,10 @@
+{
+  "watch": ["dist"],
+  "ext": "js",
+  "ignore": ["node_modules", "src"],
+  "exec": "node dist/index.js",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
+}

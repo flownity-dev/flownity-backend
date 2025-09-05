@@ -45,6 +45,7 @@ export interface AppConfig {
   GOOGLE_CLIENT_SECRET: string;
   CALLBACK_URL: string;
   GOOGLE_CALLBACK_URL: string;
+  FRONTEND_URL: string;
   DATABASE_HOST: string;
   DATABASE_PORT: number;
   DATABASE_NAME: string;
@@ -91,6 +92,7 @@ function validateConfig(): AppConfig {
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
     CALLBACK_URL: process.env.CALLBACK_URL || '',
     GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL || '',
+    FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
     DATABASE_HOST: process.env.DATABASE_HOST!,
     DATABASE_PORT: parseInt(process.env.DATABASE_PORT || '5432', 10),
     DATABASE_NAME: process.env.DATABASE_NAME!,

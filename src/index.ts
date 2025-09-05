@@ -8,9 +8,6 @@ import routes from './routes/index.js';
 import cors from "cors";
 const app = express();
 
-
-
-
 app.use(cors({
   origin: "http://localhost:5173", // your frontend
   credentials: false,               // if you send cookies or auth headers

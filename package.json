@@ -27,6 +27,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/ms": "^2.1.0",
     "@types/axios": "^0.9.36",
+    "@types/cors": "^2.8.19",
     "@types/passport-google-oauth20": "^2.0.16",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
@@ -39,7 +40,6 @@
     "pg": "^8.16.3"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.3.0",
     "@types/passport": "^1.0.17",

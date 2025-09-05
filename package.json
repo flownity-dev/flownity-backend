@@ -25,8 +25,10 @@
   "license": "ISC",
   "dependencies": {
     "@types/axios": "^0.9.36",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/passport-google-oauth20": "^2.0.16",
+    "@types/cors": "^2.8.19",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/ms": "^2.1.0",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
@@ -38,9 +40,7 @@
     "pg": "^8.16.3"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.3.0",
     "@types/passport": "^1.0.17",
     "@types/passport-github2": "^1.2.9",

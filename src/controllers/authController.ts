@@ -66,7 +66,7 @@ export class AuthController {
         });
 
         // Redirect to frontend with token
-        const redirectUrl = `${config.FRONTEND_URL}/login?token=${encodeURIComponent(token)}&success=true`;
+        const redirectUrl = `${config.FRONTEND_URL}/auth/callback?token=${encodeURIComponent(token)}&success=true`;
         res.redirect(redirectUrl);
 
       } catch (tokenError) {
@@ -131,7 +131,7 @@ export class AuthController {
         });
 
         // Redirect to frontend with token
-        const redirectUrl = `${config.FRONTEND_URL}/login?token=${encodeURIComponent(token)}&success=true`;
+        const redirectUrl = `${config.FRONTEND_URL}/auth/callback?token=${encodeURIComponent(token)}&success=true`;
         res.redirect(redirectUrl);
 
       } catch (tokenError) {

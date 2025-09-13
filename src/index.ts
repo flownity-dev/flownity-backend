@@ -6,10 +6,11 @@ import { errorHandler, notFoundHandler } from './errors/index.js';
 import { logger, LogCategory } from './utils/index.js';
 import routes from './routes/index.js';
 import cors from "cors";
+
 const app = express();
 
 app.use(cors({
-  origin: "http://localhost:5173", // your frontend
+  origin: config.FRONTEND_URL, // your frontend
   credentials: false,               // if you send cookies or auth headers
 }));
 

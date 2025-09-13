@@ -6,7 +6,7 @@ export interface TaskGroupRow {
     id: number;
     task_group_title: string;
     project_id: number;
-    status_id: number | null;
+    status?: string | null; // from flwnty_status.status_name
     due_from: Date | null;
     due_to: Date | null;
     created_by: number;
@@ -35,7 +35,7 @@ export class TaskGroup {
     public readonly id: number;
     public readonly taskGroupTitle: string;
     public readonly projectId: number;
-    public readonly statusId: number | null;
+    public readonly status: string | null;
     public readonly dueFrom: Date | null;
     public readonly dueTo: Date | null;
     public readonly createdBy: number;
@@ -47,7 +47,7 @@ export class TaskGroup {
         this.id = data.id;
         this.taskGroupTitle = data.task_group_title;
         this.projectId = data.project_id;
-        this.statusId = data.status_id;
+        this.status = data.status ?? null;
         this.dueFrom = data.due_from;
         this.dueTo = data.due_to;
         this.createdBy = data.created_by;
@@ -72,9 +72,11 @@ export class TaskGroup {
             });
 
             const query = `
-                SELECT * FROM flwnty_task_group
-                WHERE created_by = $1 AND deleted_at IS NULL
-                ORDER BY created_at DESC
+                SELECT tg.*, s.status_name AS status
+                FROM flwnty_task_group tg
+                LEFT JOIN flwnty_status s ON tg.status_id = s.id
+                WHERE tg.created_by = $1 AND tg.deleted_at IS NULL
+                ORDER BY tg.created_at DESC
             `;
             const result = await DatabaseConnection.query<TaskGroupRow>(query, [userId]);
             return result.rows.map(row => new TaskGroup(row));
@@ -98,7 +100,6 @@ export class TaskGroup {
      * Find a task group by ID
      */
     static async findById(id: number): Promise<TaskGroup | null> {
-        console.log('test taskgroup:',id)
         if (!id || typeof id !== 'number') {
             throw new ValidationError('Task Group ID is required and must be a number');
         }
@@ -110,7 +111,12 @@ export class TaskGroup {
                 taskGroupId: id
             });
 
-            const query = 'SELECT * FROM flwnty_task_group WHERE id = $1 AND deleted_at IS NULL';
+            const query = `
+                SELECT tg.*, s.status_name AS status
+                FROM flwnty_task_group tg
+                LEFT JOIN flwnty_status s ON tg.status_id = s.id
+                WHERE tg.id = $1 AND tg.deleted_at IS NULL
+            `;
             const result = await DatabaseConnection.query<TaskGroupRow>(query, [id]);
 
             return result.rows.length > 0 ? new TaskGroup(result.rows[0]!) : null;
@@ -195,7 +201,6 @@ export class TaskGroup {
             throw new ValidationError('User ID is required and must be a number');
         }
 
-        // Check if task group exists and belongs to user
         const existingTaskGroup = await this.findById(id);
         if (!existingTaskGroup) {
             return null;
@@ -205,7 +210,6 @@ export class TaskGroup {
             throw new ValidationError('You can only update your own task groups');
         }
 
-        // Build dynamic update query
         const updateFields: string[] = [];
         const values: any[] = [];
         let paramCount = 1;
@@ -247,6 +251,7 @@ export class TaskGroup {
 
         updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
         values.push(id);
+        values.push(userId);
 
         try {
             logger.database('Updating task group', {
@@ -264,10 +269,7 @@ export class TaskGroup {
                 RETURNING *
             `;
 
-            values.push(id);
-            values.push(userId);
             const result = await DatabaseConnection.query<TaskGroupRow>(query, values);
-
             return result.rows.length > 0 ? new TaskGroup(result.rows[0]!) : null;
         } catch (error) {
             logger.database('Error updating task group', {
@@ -287,7 +289,7 @@ export class TaskGroup {
     }
 
     /**
-     * Soft delete a task group (sets deleted_at timestamp)
+     * Soft delete a task group
      */
     static async delete(id: number, userId: number): Promise<boolean> {
         if (!id || typeof id !== 'number') {
@@ -299,180 +301,20 @@ export class TaskGroup {
         }
 
         try {
-            logger.database('Soft deleting task group', {
-                operation: 'soft_delete',
-                table: 'flwnty_task_group',
-                taskGroupId: id,
-                userId
-            });
-
             const query = `
                 UPDATE flwnty_task_group 
                 SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
                 WHERE id = $1 AND created_by = $2 AND deleted_at IS NULL
             `;
             const result = await DatabaseConnection.query(query, [id, userId]);
-
             return (result.rowCount ?? 0) > 0;
         } catch (error) {
-            logger.database('Error soft deleting task group', {
-                operation: 'soft_delete',
-                table: 'flwnty_task_group',
-                taskGroupId: id,
-                userId,
-                error: error instanceof Error ? error.message : String(error)
-            });
-
-            throw new DatabaseError(
-                'Failed to delete task group',
-                500,
-                'TASK_GROUP_DELETE_ERROR'
-            );
+            throw new DatabaseError('Failed to delete task group', 500, 'TASK_GROUP_DELETE_ERROR');
         }
     }
 
-    /**
-     * Restore a soft deleted task group
-     */
-    static async restore(id: number, userId: number): Promise<boolean> {
-        if (!id || typeof id !== 'number') {
-            throw new ValidationError('Task Group ID is required and must be a number');
-        }
 
-        if (!userId || typeof userId !== 'number') {
-            throw new ValidationError('User ID is required and must be a number');
-        }
 
-        try {
-            logger.database('Restoring soft deleted task group', {
-                operation: 'restore',
-                table: 'flwnty_task_group',
-                taskGroupId: id,
-                userId
-            });
-
-            const query = `
-                UPDATE flwnty_task_group 
-                SET deleted_at = NULL, updated_at = CURRENT_TIMESTAMP
-                WHERE id = $1 AND created_by = $2 AND deleted_at IS NOT NULL
-            `;
-            const result = await DatabaseConnection.query(query, [id, userId]);
-
-            return (result.rowCount ?? 0) > 0;
-        } catch (error) {
-            logger.database('Error restoring task group', {
-                operation: 'restore',
-                table: 'flwnty_task_group',
-                taskGroupId: id,
-                userId,
-                error: error instanceof Error ? error.message : String(error)
-            });
-
-            throw new DatabaseError(
-                'Failed to restore task group',
-                500,
-                'TASK_GROUP_RESTORE_ERROR'
-            );
-        }
-    }
-
-    /**
-     * Get all soft deleted task groups for a user
-     */
-    static async findDeletedByUserId(userId: number): Promise<TaskGroup[]> {
-        if (!userId || typeof userId !== 'number') {
-            throw new ValidationError('User ID is required and must be a number');
-        }
-
-        try {
-            logger.database('Finding deleted task groups by user ID', {
-                operation: 'findDeletedByUserId',
-                table: 'flwnty_task_group',
-                userId
-            });
-
-            const query = `
-                SELECT * FROM flwnty_task_group
-                WHERE created_by = $1 AND deleted_at IS NOT NULL
-                ORDER BY deleted_at DESC
-            `;
-            const result = await DatabaseConnection.query<TaskGroupRow>(query, [userId]);
-            return result.rows.map(row => new TaskGroup(row));
-        } catch (error) {
-            logger.database('Error finding deleted task groups by user ID', {
-                operation: 'findDeletedByUserId',
-                table: 'flwnty_task_group',
-                userId,
-                error: error instanceof Error ? error.message : String(error)
-            });
-
-            throw new DatabaseError(
-                'Failed to find deleted task groups by user ID',
-                500,
-                'TASK_GROUP_FIND_DELETED_ERROR'
-            );
-        }
-    }
-
-    /**
-     * Get paginated task groups for a user
-     */
-    static async findByUserIdPaginated(
-        userId: number, 
-        params: PaginationParams
-    ): Promise<{ taskGroups: TaskGroup[]; totalCount: number }> {
-        if (!userId || typeof userId !== 'number') {
-            throw new ValidationError('User ID is required and must be a number');
-        }
-
-        try {
-            logger.database('Finding paginated task groups by user ID', {
-                operation: 'findByUserIdPaginated',
-                table: 'flwnty_task_group',
-                userId,
-                page: params.page,
-                limit: params.limit
-            });
-
-            // First, get the total count
-            const countQuery = `
-                SELECT COUNT(*) as total FROM flwnty_task_group
-                WHERE created_by = $1 AND deleted_at IS NULL
-            `;
-            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
-            const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
-
-            // Then get the paginated data
-            const offset = (params.page - 1) * params.limit;
-            const dataQuery = `
-                SELECT * FROM flwnty_task_group
-                WHERE created_by = $1 AND deleted_at IS NULL
-                ORDER BY created_at DESC
-                LIMIT $2 OFFSET $3
-            `;
-            const dataResult = await DatabaseConnection.query<TaskGroupRow>(dataQuery, [userId, params.limit, offset]);
-            const taskGroups = dataResult.rows.map(row => new TaskGroup(row));
-
-            return { taskGroups, totalCount };
-        } catch (error) {
-            logger.database('Error finding paginated task groups by user ID', {
-                operation: 'findByUserIdPaginated',
-                table: 'flwnty_task_group',
-                userId,
-                error: error instanceof Error ? error.message : String(error)
-            });
-
-            throw new DatabaseError(
-                'Failed to find paginated task groups by user ID',
-                500,
-                'TASK_GROUP_FIND_PAGINATED_ERROR'
-            );
-        }
-    }
-
-    /**
-     * Get paginated soft deleted task groups for a user
-     */
     static async findDeletedByUserIdPaginated(
         userId: number, 
         params: PaginationParams
@@ -526,6 +368,52 @@ export class TaskGroup {
         }
     }
 
+
+        /**
+     * Restore a soft deleted task group
+     */
+    static async restore(id: number, userId: number): Promise<boolean> {
+        if (!id || typeof id !== 'number') {
+            throw new ValidationError('Task Group ID is required and must be a number');
+        }
+
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Restoring soft deleted task group', {
+                operation: 'restore',
+                table: 'flwnty_task_group',
+                taskGroupId: id,
+                userId
+            });
+
+            const query = `
+                UPDATE flwnty_task_group 
+                SET deleted_at = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 AND created_by = $2 AND deleted_at IS NOT NULL
+            `;
+            const result = await DatabaseConnection.query(query, [id, userId]);
+
+            return (result.rowCount ?? 0) > 0;
+        } catch (error) {
+            logger.database('Error restoring task group', {
+                operation: 'restore',
+                table: 'flwnty_task_group',
+                taskGroupId: id,
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to restore task group',
+                500,
+                'TASK_GROUP_RESTORE_ERROR'
+            );
+        }
+    }
+
     /**
      * Permanently delete a task group (hard delete)
      */
@@ -565,17 +453,54 @@ export class TaskGroup {
                 'TASK_GROUP_FORCE_DELETE_ERROR'
             );
         }
+    }    
+
+    /**
+     * Get paginated task groups for a user
+     */
+    static async findByUserIdPaginated(
+        userId: number, 
+        params: PaginationParams
+    ): Promise<{ taskGroups: TaskGroup[]; totalCount: number }> {
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            const countQuery = `
+                SELECT COUNT(*) as total FROM flwnty_task_group
+                WHERE created_by = $1 AND deleted_at IS NULL
+            `;
+            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
+            const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
+
+            const offset = (params.page - 1) * params.limit;
+            const dataQuery = `
+                SELECT tg.*, s.status_name AS status
+                FROM flwnty_task_group tg
+                LEFT JOIN flwnty_status s ON tg.status_id = s.id
+                WHERE tg.created_by = $1 AND tg.deleted_at IS NULL
+                ORDER BY tg.created_at DESC
+                LIMIT $2 OFFSET $3
+            `;
+            const dataResult = await DatabaseConnection.query<TaskGroupRow>(dataQuery, [userId, params.limit, offset]);
+            const taskGroups = dataResult.rows.map(row => new TaskGroup(row));
+
+            return { taskGroups, totalCount };
+        } catch (error) {
+            throw new DatabaseError('Failed to find paginated task groups', 500, 'TASK_GROUP_FIND_PAGINATED_ERROR');
+        }
     }
 
     /**
-     * Get task group data as a plain object
+     * Convert to plain object
      */
     toJSON(): TaskGroupRow {
         return {
             id: this.id,
             task_group_title: this.taskGroupTitle,
             project_id: this.projectId,
-            status_id: this.statusId,
+            status: this.status,
             due_from: this.dueFrom,
             due_to: this.dueTo,
             created_by: this.createdBy,

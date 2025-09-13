@@ -313,6 +313,148 @@ export class TaskGroup {
         }
     }
 
+
+
+    static async findDeletedByUserIdPaginated(
+        userId: number, 
+        params: PaginationParams
+    ): Promise<{ taskGroups: TaskGroup[]; totalCount: number }> {
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Finding paginated deleted task groups by user ID', {
+                operation: 'findDeletedByUserIdPaginated',
+                table: 'flwnty_task_group',
+                userId,
+                page: params.page,
+                limit: params.limit
+            });
+
+            // First, get the total count
+            const countQuery = `
+                SELECT COUNT(*) as total FROM flwnty_task_group
+                WHERE created_by = $1 AND deleted_at IS NOT NULL
+            `;
+            const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
+            const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
+
+            // Then get the paginated data
+            const offset = (params.page - 1) * params.limit;
+            const dataQuery = `
+                SELECT * FROM flwnty_task_group
+                WHERE created_by = $1 AND deleted_at IS NOT NULL
+                ORDER BY deleted_at DESC
+                LIMIT $2 OFFSET $3
+            `;
+            const dataResult = await DatabaseConnection.query<TaskGroupRow>(dataQuery, [userId, params.limit, offset]);
+            const taskGroups = dataResult.rows.map(row => new TaskGroup(row));
+
+            return { taskGroups, totalCount };
+        } catch (error) {
+            logger.database('Error finding paginated deleted task groups by user ID', {
+                operation: 'findDeletedByUserIdPaginated',
+                table: 'flwnty_task_group',
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to find paginated deleted task groups by user ID',
+                500,
+                'TASK_GROUP_FIND_DELETED_PAGINATED_ERROR'
+            );
+        }
+    }
+
+
+        /**
+     * Restore a soft deleted task group
+     */
+    static async restore(id: number, userId: number): Promise<boolean> {
+        if (!id || typeof id !== 'number') {
+            throw new ValidationError('Task Group ID is required and must be a number');
+        }
+
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Restoring soft deleted task group', {
+                operation: 'restore',
+                table: 'flwnty_task_group',
+                taskGroupId: id,
+                userId
+            });
+
+            const query = `
+                UPDATE flwnty_task_group 
+                SET deleted_at = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 AND created_by = $2 AND deleted_at IS NOT NULL
+            `;
+            const result = await DatabaseConnection.query(query, [id, userId]);
+
+            return (result.rowCount ?? 0) > 0;
+        } catch (error) {
+            logger.database('Error restoring task group', {
+                operation: 'restore',
+                table: 'flwnty_task_group',
+                taskGroupId: id,
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to restore task group',
+                500,
+                'TASK_GROUP_RESTORE_ERROR'
+            );
+        }
+    }
+
+    /**
+     * Permanently delete a task group (hard delete)
+     */
+    static async forceDelete(id: number, userId: number): Promise<boolean> {
+        if (!id || typeof id !== 'number') {
+            throw new ValidationError('Task Group ID is required and must be a number');
+        }
+
+        if (!userId || typeof userId !== 'number') {
+            throw new ValidationError('User ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Force deleting task group', {
+                operation: 'force_delete',
+                table: 'flwnty_task_group',
+                taskGroupId: id,
+                userId
+            });
+
+            const query = 'DELETE FROM flwnty_task_group WHERE id = $1 AND created_by = $2';
+            const result = await DatabaseConnection.query(query, [id, userId]);
+
+            return (result.rowCount ?? 0) > 0;
+        } catch (error) {
+            logger.database('Error force deleting task group', {
+                operation: 'force_delete',
+                table: 'flwnty_task_group',
+                taskGroupId: id,
+                userId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to permanently delete task group',
+                500,
+                'TASK_GROUP_FORCE_DELETE_ERROR'
+            );
+        }
+    }    
+
     /**
      * Get paginated task groups for a user
      */

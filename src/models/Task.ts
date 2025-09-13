@@ -9,6 +9,7 @@ export interface TaskRow {
     task_title: string;
     description: string | null;
     status_id: number | null;
+    status_name?: string | null;   // <-- added
     due_from: Date | null;
     due_to: Date | null;
     assignee: number | null;
@@ -49,6 +50,7 @@ export class Task {
     public readonly taskTitle: string;
     public readonly description: string | null;
     public readonly statusId: number | null;
+    public readonly statusName: string | null;   // <-- added
     public readonly dueFrom: Date | null;
     public readonly dueTo: Date | null;
     public readonly assignee: number | null;
@@ -64,6 +66,7 @@ export class Task {
         this.taskTitle = data.task_title;
         this.description = data.description;
         this.statusId = data.status_id;
+        this.statusName = data.status_name ?? null;   // <-- map status_name
         this.dueFrom = data.due_from;
         this.dueTo = data.due_to;
         this.assignee = data.assignee;
@@ -89,9 +92,11 @@ export class Task {
             });
 
             const query = `
-                SELECT * FROM flwnty_task
-                WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NULL
-                ORDER BY created_at DESC
+                SELECT t.*, s.status_name
+                FROM flwnty_task t
+                LEFT JOIN flwnty_status s ON t.status_id = s.id
+                WHERE (t.assignee = $1 OR t.approver = $1) AND t.deleted_at IS NULL
+                ORDER BY t.created_at DESC
             `;
             const result = await DatabaseConnection.query<TaskRow>(query, [userId]);
             return result.rows.map(row => new Task(row));
@@ -126,7 +131,12 @@ export class Task {
                 taskId: id
             });
 
-            const query = 'SELECT * FROM flwnty_task WHERE id = $1 AND deleted_at IS NULL';
+            const query = `
+                SELECT t.*, s.status_name
+                FROM flwnty_task t
+                LEFT JOIN flwnty_status s ON t.status_id = s.id
+                WHERE t.id = $1 AND t.deleted_at IS NULL
+            `;
             const result = await DatabaseConnection.query<TaskRow>(query, [id]);
 
             return result.rows.length > 0 ? new Task(result.rows[0]!) : null;
@@ -208,7 +218,6 @@ export class Task {
             throw new ValidationError('User ID is required and must be a number');
         }
 
-        // Check if task exists and user has permission (assignee or approver)
         const existingTask = await this.findById(id);
         if (!existingTask) {
             return null;
@@ -218,7 +227,6 @@ export class Task {
             throw new ValidationError('You can only update tasks where you are the assignee or approver');
         }
 
-        // Build dynamic update query
         const updateFields: string[] = [];
         const values: any[] = [];
         let paramCount = 1;
@@ -316,7 +324,7 @@ export class Task {
     }
 
     /**
-     * Soft delete a task (sets deleted_at timestamp)
+     * Soft delete a task
      */
     static async delete(id: number, userId: number): Promise<boolean> {
         if (!id || typeof id !== 'number') {
@@ -361,7 +369,7 @@ export class Task {
     }
 
     /**
-     * Restore a soft deleted task
+     * Restore a task
      */
     static async restore(id: number, userId: number): Promise<boolean> {
         if (!id || typeof id !== 'number') {
@@ -406,7 +414,7 @@ export class Task {
     }
 
     /**
-     * Get all soft deleted tasks for a user
+     * Get all soft deleted tasks
      */
     static async findDeletedByUserId(userId: number): Promise<Task[]> {
         if (!userId || typeof userId !== 'number') {
@@ -421,9 +429,11 @@ export class Task {
             });
 
             const query = `
-                SELECT * FROM flwnty_task
-                WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NOT NULL
-                ORDER BY deleted_at DESC
+                SELECT t.*, s.status_name
+                FROM flwnty_task t
+                LEFT JOIN flwnty_status s ON t.status_id = s.id
+                WHERE (t.assignee = $1 OR t.approver = $1) AND t.deleted_at IS NOT NULL
+                ORDER BY t.deleted_at DESC
             `;
             const result = await DatabaseConnection.query<TaskRow>(query, [userId]);
             return result.rows.map(row => new Task(row));
@@ -444,7 +454,7 @@ export class Task {
     }
 
     /**
-     * Get paginated tasks for a user (where user is assignee or approver)
+     * Paginated tasks
      */
     static async findByUserIdPaginated(
         userId: number, 
@@ -463,7 +473,6 @@ export class Task {
                 limit: params.limit
             });
 
-            // First, get the total count
             const countQuery = `
                 SELECT COUNT(*) as total FROM flwnty_task
                 WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NULL
@@ -471,12 +480,13 @@ export class Task {
             const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
             const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
 
-            // Then get the paginated data
             const offset = (params.page - 1) * params.limit;
             const dataQuery = `
-                SELECT * FROM flwnty_task
-                WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NULL
-                ORDER BY created_at DESC
+                SELECT t.*, s.status_name
+                FROM flwnty_task t
+                LEFT JOIN flwnty_status s ON t.status_id = s.id
+                WHERE (t.assignee = $1 OR t.approver = $1) AND t.deleted_at IS NULL
+                ORDER BY t.created_at DESC
                 LIMIT $2 OFFSET $3
             `;
             const dataResult = await DatabaseConnection.query<TaskRow>(dataQuery, [userId, params.limit, offset]);
@@ -500,7 +510,7 @@ export class Task {
     }
 
     /**
-     * Get paginated soft deleted tasks for a user
+     * Paginated deleted tasks
      */
     static async findDeletedByUserIdPaginated(
         userId: number, 
@@ -519,7 +529,6 @@ export class Task {
                 limit: params.limit
             });
 
-            // First, get the total count
             const countQuery = `
                 SELECT COUNT(*) as total FROM flwnty_task
                 WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NOT NULL
@@ -527,12 +536,13 @@ export class Task {
             const countResult = await DatabaseConnection.query<{ total: string }>(countQuery, [userId]);
             const totalCount = parseInt(countResult.rows[0]?.total || '0', 10);
 
-            // Then get the paginated data
             const offset = (params.page - 1) * params.limit;
             const dataQuery = `
-                SELECT * FROM flwnty_task
-                WHERE (assignee = $1 OR approver = $1) AND deleted_at IS NOT NULL
-                ORDER BY deleted_at DESC
+                SELECT t.*, s.status_name
+                FROM flwnty_task t
+                LEFT JOIN flwnty_status s ON t.status_id = s.id
+                WHERE (t.assignee = $1 OR t.approver = $1) AND t.deleted_at IS NOT NULL
+                ORDER BY t.deleted_at DESC
                 LIMIT $2 OFFSET $3
             `;
             const dataResult = await DatabaseConnection.query<TaskRow>(dataQuery, [userId, params.limit, offset]);
@@ -556,7 +566,7 @@ export class Task {
     }
 
     /**
-     * Permanently delete a task (hard delete)
+     * Permanently delete
      */
     static async forceDelete(id: number, userId: number): Promise<boolean> {
         if (!id || typeof id !== 'number') {
@@ -597,7 +607,7 @@ export class Task {
     }
 
     /**
-     * Get task data as a plain object
+     * Serialize
      */
     toJSON(): TaskRow {
         return {
@@ -607,6 +617,7 @@ export class Task {
             task_title: this.taskTitle,
             description: this.description,
             status_id: this.statusId,
+            status_name: this.statusName,   // <-- included
             due_from: this.dueFrom,
             due_to: this.dueTo,
             assignee: this.assignee,

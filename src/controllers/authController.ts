@@ -21,67 +21,94 @@ export class AuthController {
   /**
    * Handle GitHub OAuth callback
    */
-  static githubCallback = (req: Request, res: Response, next: NextFunction) => {
-    const requestLogger = logger.withRequest(req);
+static githubCallback = (req: Request, res: Response, next: NextFunction) => {
+  const requestLogger = logger.withRequest(req);
 
-    passport.authenticate('github', (err: any, user: DatabaseUser, _info: any) => {
-      if (err) {
-        requestLogger.oauth('OAuth callback failed with error', {
-          step: 'callback_error',
-          success: false,
-          error: err.message,
-          provider: 'github'
-        });
+  passport.authenticate('github', (err: any, user: DatabaseUser, _info: any) => {
+    if (err) {
+      requestLogger.oauth('OAuth callback failed with error', {
+        step: 'callback_error',
+        success: false,
+        error: err.message,
+        provider: 'github'
+      });
 
-        if (err instanceof OAuthError) {
-          const errorUrl = `${config.FRONTEND_URL}/login?error=oauth_failed&message=${encodeURIComponent(err.message)}`;
-          return res.redirect(errorUrl);
-        }
-        return next(err);
-      }
+      return res.send(`
+        <script>
+          window.opener.postMessage(
+            { type: "oauth_error", message: ${JSON.stringify(err.message)} },
+            "${config.FRONTEND_URL}"
+          );
+          window.close();
+        </script>
+      `);
+    }
 
-      if (!user) {
-        requestLogger.oauth('OAuth callback failed - user denied access', {
-          step: 'callback_denied',
-          success: false,
-          error: 'user_denied_access',
-          provider: 'github'
-        });
+    if (!user) {
+      requestLogger.oauth('OAuth callback failed - user denied access', {
+        step: 'callback_denied',
+        success: false,
+        error: 'user_denied_access',
+        provider: 'github'
+      });
 
-        const errorUrl = `${config.FRONTEND_URL}/login?error=oauth_denied&message=${encodeURIComponent('GitHub authentication was cancelled or denied')}`;
-        return res.redirect(errorUrl);
-      }
+      return res.send(`
+        <script>
+          window.opener.postMessage(
+            { type: "oauth_error", message: "GitHub authentication was cancelled or denied" },
+            "${config.FRONTEND_URL}"
+          );
+          window.close();
+        </script>
+      `);
+    }
 
-      try {
-        // Generate JWT token instead of creating session
-        const token = generateToken(user);
+    try {
+      // Generate JWT token
+      const token = generateToken(user);
 
-        requestLogger.auth('User successfully logged in via OAuth', {
-          action: 'oauth_login_complete',
-          success: true,
-          userId: user.id,
-          providerId: user.providerId,
-          provider: user.provider,
-          username: user.username
-        });
+      requestLogger.auth('User successfully logged in via OAuth', {
+        action: 'oauth_login_complete',
+        success: true,
+        userId: user.id,
+        providerId: user.providerId,
+        provider: user.provider,
+        username: user.username
+      });
 
-        // Redirect to frontend with token
-        const redirectUrl = `${config.FRONTEND_URL}/auth/callback?token=${encodeURIComponent(token)}&success=true`;
-        res.redirect(redirectUrl);
+      // ✅ Instead of res.json, send HTML that posts back the token
+      return res.send(`
+        <script>
+          window.opener.postMessage(
+            { type: "oauth_success", token: "${token}" },
+            "${config.FRONTEND_URL}"
+          );
+          window.close();
+        </script>
+      `);
 
-      } catch (tokenError) {
-        requestLogger.auth('Failed to generate JWT token after authentication', {
-          action: 'jwt_generation_failed',
-          success: false,
-          error: tokenError instanceof Error ? tokenError.message : String(tokenError),
-          userId: user.id,
-          provider: 'github'
-        });
+    } catch (tokenError) {
+      requestLogger.auth('Failed to generate JWT token after authentication', {
+        action: 'jwt_generation_failed',
+        success: false,
+        error: tokenError instanceof Error ? tokenError.message : String(tokenError),
+        userId: user?.id,
+        provider: 'github'
+      });
 
-        return next(new OAuthError('Failed to generate authentication token', 500, 'JWT_GENERATION_FAILED'));
-      }
-    })(req, res, next);
-  };
+      return res.send(`
+        <script>
+          window.opener.postMessage(
+            { type: "oauth_error", message: "Failed to generate authentication token" },
+            "${config.FRONTEND_URL}"
+          );
+          window.close();
+        </script>
+      `);
+    }
+  })(req, res, next);
+};
+
 
   /**
    * Handle Google OAuth callback

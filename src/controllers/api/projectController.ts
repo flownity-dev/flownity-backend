@@ -525,6 +525,15 @@ export class ProjectController {
     static getProjectFlow = async (req: Request, res: Response) => {
         const jwtUser = getJWTUser(req);
         const projectId = parseInt(req.params.project_id!);
+        const haveTaskInProject =  await Task.findByProjectId(projectId);
+
+        if (haveTaskInProject.length == 0) {
+            return res.status(401).json({
+                success: false,
+                error: 'Project flow view not available',
+                message: 'User dont have task in this project'
+            });
+        }
     
         if (!jwtUser) {
             return res.status(401).json({
@@ -552,6 +561,7 @@ export class ProjectController {
                 });
             }
     
+            //TODO: Members should be able to view all projects
             if (project.createdBy !== jwtUser.userId) {
                 return res.status(403).json({
                     success: false,

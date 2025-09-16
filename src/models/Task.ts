@@ -76,6 +76,45 @@ export class Task {
         this.deletedAt = data.deleted_at;
     }
 
+
+    static async findByProjectId(projectId: number): Promise<Task[]> {
+        if (!projectId || typeof projectId !== 'number') {
+            throw new ValidationError('Project ID is required and must be a number');
+        }
+
+        try {
+            logger.database('Finding tasks by project ID', {
+                operation: 'findByProjectId',
+                table: 'flwnty_task',
+                projectId
+            });
+
+            const query = `
+                SELECT t.*, s.status_name
+                FROM flwnty_task t
+                LEFT JOIN flwnty_status s ON t.status_id = s.id
+                WHERE t.project_id = $1 AND t.deleted_at IS NULL
+                ORDER BY t.created_at DESC
+            `;
+            const result = await DatabaseConnection.query<TaskRow>(query, [projectId]);
+            return result.rows.map(row => new Task(row));
+        } catch (error) {
+            logger.database('Error finding tasks by project ID', {
+                operation: 'findByProjectId',
+                table: 'flwnty_task',
+                projectId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+
+            throw new DatabaseError(
+                'Failed to find tasks by project ID',
+                500,
+                'TASK_FIND_BY_PROJECT_ID_ERROR'
+            );
+        }
+    }
+
+
     /**
      * Get all tasks for a user (where user is assignee or approver)
      */
@@ -457,7 +496,7 @@ export class Task {
      * Paginated tasks
      */
     static async findByUserIdPaginated(
-        userId: number, 
+        userId: number,
         params: PaginationParams
     ): Promise<{ tasks: Task[]; totalCount: number }> {
         if (!userId || typeof userId !== 'number') {
@@ -513,7 +552,7 @@ export class Task {
      * Paginated deleted tasks
      */
     static async findDeletedByUserIdPaginated(
-        userId: number, 
+        userId: number,
         params: PaginationParams
     ): Promise<{ tasks: Task[]; totalCount: number }> {
         if (!userId || typeof userId !== 'number') {
